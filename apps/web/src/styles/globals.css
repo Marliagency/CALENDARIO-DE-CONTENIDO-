@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light mode default values */
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+
+  --ws-primary: #3b82f6;
+  --ws-secondary: #7c5cfc;
+}
+
+.dark {
+  --bg-base: #0f1117;
+  --bg-surface: #1a1d27;
+  --bg-hover: #252836;
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #2d3148;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* Scrollbar — sutil */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Focus visible accesible */
+:focus-visible {
+  outline: 2px solid var(--ws-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  .card {
+    @apply rounded-card border bg-surface shadow-card;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background-color: var(--ws-primary);
+  }
+  .btn-primary:hover {
+    filter: brightness(0.92);
+  }
+  .btn-secondary {
+    @apply btn bg-hover text-ink border border-border hover:bg-base;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-hover hover:text-ink;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .input {
+    @apply w-full rounded-md border border-border bg-base px-3 py-1.5 text-sm placeholder:text-ink-muted focus:outline-none focus:ring-2;
+  }
+  .input:focus {
+    --tw-ring-color: var(--ws-primary);
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wide text-ink-muted;
+  }
+}

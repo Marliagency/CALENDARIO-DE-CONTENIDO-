@@ -1,0 +1,21 @@
+{
+  "name": "pulse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pulse — herramienta personal de gestión de contenido y publicaciones en redes sociales, multi-workspace",
+  "engines": {
+    "node": ">=18.0.0 <19.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev:web": "pnpm --filter @pulse/web dev",
+    "dev:web:mock": "pnpm --filter @pulse/web dev",
+    "build:web": "pnpm --filter @pulse/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "5.4.5"
+  }
+}
