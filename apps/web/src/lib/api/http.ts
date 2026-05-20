@@ -38,14 +38,29 @@ export class HttpError extends Error {
   }
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new HttpError(res.status, await safeText(res));
+  return res.json();
+}
+
 export const http = {
   listWorkspaces: () =>
     get<{ workspaces: unknown[] }>("/api/v1/workspaces").then((r) => r.workspaces),
   getWorkspace: (slug: string) => get(`/api/v1/workspaces/${slug}`),
+  updateWorkspace: (slug: string, body: Record<string, unknown>) =>
+    patch(`/api/v1/workspaces/${slug}`, body),
+
   getBrain: (slug: string) => get(`/api/v1/w/${slug}/brain`),
   getPersonas: (slug: string) => get(`/api/v1/w/${slug}/brain/personas`),
   getHooks: (slug: string) => get(`/api/v1/w/${slug}/brain/hooks`),
   getAssets: (slug: string) => get(`/api/v1/w/${slug}/brain/assets`),
+
   getPieces: (slug: string, status?: string) =>
     get(`/api/v1/w/${slug}/content/pieces${status ? `?status=${status}` : ""}`),
   getAccounts: (slug: string) => get(`/api/v1/w/${slug}/social/accounts`),
@@ -54,6 +69,41 @@ export const http = {
   getApiKeys: (slug: string) => get(`/api/v1/w/${slug}/api-keys`),
   createApiKey: (slug: string, body: { name: string; scopes: string[] }) =>
     post(`/api/v1/w/${slug}/api-keys`, body),
+
+  getMetricsSummary: (slug: string) =>
+    get(`/api/v1/w/${slug}/metrics/summary`),
+
+  // Queue actions
+  approvePiece: (slug: string, id: string) =>
+    post(`/api/v1/w/${slug}/queue/pieces/${id}/approve`, {}),
+  rejectPiece: (slug: string, id: string, reason: string) =>
+    post(`/api/v1/w/${slug}/queue/pieces/${id}/reject`, { reason }),
+  requestChanges: (slug: string, id: string, reason: string) =>
+    post(`/api/v1/w/${slug}/queue/pieces/${id}/request-changes`, { reason }),
+  runQc: (slug: string, id: string) =>
+    post<{ results: unknown[] }>(`/api/v1/w/${slug}/queue/pieces/${id}/qc`, {}),
+  scheduleVariant: (slug: string, variantId: string, scheduledAt: string) =>
+    patch(`/api/v1/w/${slug}/queue/variants/${variantId}/schedule`, { scheduledAt }),
+  boostVariant: (
+    slug: string,
+    variantId: string,
+    body: {
+      enabled: boolean;
+      budgetEur: number;
+      durationDays: number;
+      objective?: string;
+      audiencePresetId?: string;
+      platforms?: string[];
+    },
+  ) => patch(`/api/v1/w/${slug}/queue/variants/${variantId}/boost`, body),
+
+  // Audit + analytics
+  getAudit: (slug: string, limit = 100) =>
+    get(`/api/v1/w/${slug}/audit?limit=${limit}`),
+
+  // Dev-only
+  generateDummyMetrics: (slug: string) =>
+    post(`/api/v1/w/${slug}/metrics/generate-dummy`, {}),
 };
 
 export const isHttpMode = import.meta.env.VITE_MOCK_API !== "1";

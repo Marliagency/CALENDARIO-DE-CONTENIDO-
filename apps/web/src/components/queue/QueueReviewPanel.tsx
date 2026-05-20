@@ -1,8 +1,10 @@
-import { Check, Edit3, Trash2, X } from "lucide-react";
+import { Check, Edit3, Loader2, X } from "lucide-react";
 import { useState } from "react";
-import type { ContentPiece, PlatformVariant } from "@pulse/types";
+import type { ContentPiece } from "@pulse/types";
 import { sync } from "@/lib/api/client";
-import { AccountChip, PlatformBadge } from "@/components/ui/PlatformBadge";
+import { http } from "@/lib/api/http";
+import { useApiMutation } from "@/lib/api";
+import { AccountChip } from "@/components/ui/PlatformBadge";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { BoostStepper } from "./BoostStepper";
 import { VariantPreview } from "./VariantPreview";
@@ -18,6 +20,35 @@ export function QueueReviewPanel({ piece, workspaceSlug }: QueueReviewPanelProps
   const variants = sync.variantsForPiece(piece.id);
   const [activeVariant, setActiveVariant] = useState<string>(variants[0]?.id ?? "");
   const current = variants.find((v) => v.id === activeVariant);
+
+  const approve = useApiMutation(() => http.approvePiece(workspaceSlug, piece.id));
+  const reject = useApiMutation((reason: string) =>
+    http.rejectPiece(workspaceSlug, piece.id, reason),
+  );
+  const reqChanges = useApiMutation((reason: string) =>
+    http.requestChanges(workspaceSlug, piece.id, reason),
+  );
+
+  const [lastAction, setLastAction] = useState<string | null>(null);
+
+  async function handle(action: "approve" | "reject" | "changes") {
+    try {
+      if (action === "approve") await approve.mutate();
+      if (action === "reject") {
+        const reason = prompt("Motivo del rechazo?") ?? "";
+        if (!reason.trim()) return;
+        await reject.mutate(reason);
+      }
+      if (action === "changes") {
+        const reason = prompt("Qué cambios pedir?") ?? "";
+        if (!reason.trim()) return;
+        await reqChanges.mutate(reason);
+      }
+      setLastAction(action);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   return (
     <div className="flex flex-col">
@@ -65,16 +96,46 @@ export function QueueReviewPanel({ piece, workspaceSlug }: QueueReviewPanelProps
         <div className="space-y-4">
           <Section title="Acciones">
             <div className="grid grid-cols-3 gap-2">
-              <button type="button" className="btn-primary">
-                <Check className="size-3.5" /> Aprobar
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handle("approve")}
+                disabled={approve.loading}
+              >
+                {approve.loading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Check className="size-3.5" />
+                )}{" "}
+                Aprobar
               </button>
-              <button type="button" className="btn-secondary">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => handle("changes")}
+                disabled={reqChanges.loading}
+              >
                 <Edit3 className="size-3.5" /> Pedir cambios
               </button>
-              <button type="button" className="btn-secondary">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => handle("reject")}
+                disabled={reject.loading}
+              >
                 <X className="size-3.5" /> Rechazar
               </button>
             </div>
+            {lastAction && (
+              <div className="mt-2 text-xs text-emerald-400">
+                Última acción: {lastAction} ✓
+              </div>
+            )}
+            {(approve.error || reject.error || reqChanges.error) && (
+              <div className="mt-2 text-xs text-red-400">
+                Error: {(approve.error || reject.error || reqChanges.error)?.message}
+              </div>
+            )}
           </Section>
 
           <Section title="Programación">
