@@ -23,31 +23,114 @@ import {
   workspaces,
 } from "@pulse/mock-data";
 import type { ContentStatus, Workspace } from "@pulse/types";
+import { dataCache } from "./data-cache";
 
 const USE_MOCK = import.meta.env.VITE_MOCK_API === "1";
+export const mockMode = USE_MOCK;
+
+// ---------- Sync API: lee de mock-data en mock mode, de dataCache en HTTP mode ----------
+
+export const sync = {
+  workspaces: () => (USE_MOCK ? workspaces : dataCache.workspaces),
+  workspace: (slug: string) =>
+    USE_MOCK
+      ? workspaceBySlug(slug)
+      : dataCache.workspaces.find((w) => w.slug === slug),
+
+  pieces: (workspaceId: string) =>
+    USE_MOCK
+      ? piecesForWorkspace(workspaceId)
+      : dataCache.pieces.filter((p) => p.workspaceId === workspaceId),
+
+  variantsForPiece: (id: string) =>
+    USE_MOCK
+      ? variantsForPiece(id)
+      : dataCache.variants.filter((v) => v.contentPieceId === id),
+
+  variantsForWorkspace: (id: string) =>
+    USE_MOCK
+      ? variantsForWorkspace(id)
+      : dataCache.variants.filter((v) => v.workspaceId === id),
+
+  accounts: (workspaceId: string) =>
+    USE_MOCK
+      ? accountsForWorkspace(workspaceId)
+      : dataCache.accounts.filter((a) => a.workspaceId === workspaceId),
+
+  allAccounts: () => (USE_MOCK ? socialAccounts : dataCache.accounts),
+
+  brain: (workspaceId: string) =>
+    USE_MOCK
+      ? brainForWorkspace(workspaceId)
+      : dataCache.brains.find((b) => b.workspaceId === workspaceId),
+
+  personas: (workspaceId: string) =>
+    USE_MOCK
+      ? personasForWorkspace(workspaceId)
+      : dataCache.personas.filter((p) => p.workspaceId === workspaceId),
+
+  hooks: (workspaceId: string) =>
+    USE_MOCK
+      ? hooksForWorkspace(workspaceId)
+      : dataCache.hooks.filter((h) => h.workspaceId === workspaceId),
+
+  assets: (workspaceId: string) =>
+    USE_MOCK
+      ? assetsForWorkspace(workspaceId)
+      : dataCache.assets.filter((a) => a.workspaceId === workspaceId),
+
+  campaigns: (workspaceId: string) =>
+    USE_MOCK
+      ? campaignsForWorkspace(workspaceId)
+      : dataCache.campaigns.filter((c) => c.workspaceId === workspaceId),
+
+  audiences: (workspaceId: string) =>
+    USE_MOCK
+      ? audiencesForWorkspace(workspaceId)
+      : dataCache.audiences.filter((a) => a.workspaceId === workspaceId),
+
+  apiKeys: (workspaceId: string) =>
+    USE_MOCK
+      ? apiKeysForWorkspace(workspaceId)
+      : dataCache.apiKeys.filter((k) => k.workspaceId === workspaceId),
+
+  // Métricas agregadas — solo existen como derivadas en mock-data.
+  // En HTTP mode actualmente devolvemos vacío hasta tener un endpoint específico.
+  dailyMetrics: (workspaceId: string) =>
+    USE_MOCK ? dailyMetricsForWorkspace(workspaceId) : [],
+  accountMetrics: (workspaceId: string) =>
+    USE_MOCK ? accountMetricsForWorkspace(workspaceId) : [],
+  formatMetrics: (workspaceId: string) =>
+    USE_MOCK ? formatMetricsForWorkspace(workspaceId) : [],
+
+  rateLimits: () => (USE_MOCK ? rateLimits : []),
+
+  allPieces: () => (USE_MOCK ? contentPieces : dataCache.pieces),
+  allVariants: () => (USE_MOCK ? platformVariants : dataCache.variants),
+
+  pieceById: (id: string) =>
+    USE_MOCK ? pieceById(id) : dataCache.pieces.find((p) => p.id === id),
+
+  user: () => currentUser, // El user real viene de useAuth(), no de aquí
+};
+
+// ---------- Async API (legacy — se mantiene para compatibilidad) ----------
 
 function delay<T>(value: T, ms = 80): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
 export const apiClient = {
-  // ---------- User & workspaces ----------
   getCurrentUser: () => delay(currentUser),
   listWorkspaces: () => delay(workspaces),
   getWorkspace: (slug: string) => delay(workspaceBySlug(slug)),
-
-  // ---------- Brand brain ----------
   getBrain: (workspaceId: string) => delay(brainForWorkspace(workspaceId)),
   getAssets: (workspaceId: string) => delay(assetsForWorkspace(workspaceId)),
   getPersonas: (workspaceId: string) => delay(personasForWorkspace(workspaceId)),
   getHooks: (workspaceId: string) => delay(hooksForWorkspace(workspaceId)),
-
-  // ---------- Social accounts ----------
   getAccounts: (workspaceId: string) => delay(accountsForWorkspace(workspaceId)),
   getAllAccounts: () => delay(socialAccounts),
   getRateLimits: () => delay(rateLimits),
-
-  // ---------- Content ----------
   getPieces: (workspaceId: string) => delay(piecesForWorkspace(workspaceId)),
   getAllPieces: () => delay(contentPieces),
   getPiece: (id: string) => delay(pieceById(id)),
@@ -55,47 +138,16 @@ export const apiClient = {
   getVariantsForWorkspace: (workspaceId: string) =>
     delay(variantsForWorkspace(workspaceId)),
   getAllVariants: () => delay(platformVariants),
-
-  // ---------- Metrics ----------
   getDailyMetrics: (workspaceId: string) =>
     delay(dailyMetricsForWorkspace(workspaceId)),
   getAccountMetrics: (workspaceId: string) =>
     delay(accountMetricsForWorkspace(workspaceId)),
   getFormatMetrics: (workspaceId: string) =>
     delay(formatMetricsForWorkspace(workspaceId)),
-
-  // ---------- Misc ----------
   getCampaigns: (workspaceId: string) => delay(campaignsForWorkspace(workspaceId)),
   getAudiences: (workspaceId: string) => delay(audiencesForWorkspace(workspaceId)),
   getApiKeys: (workspaceId: string) => delay(apiKeysForWorkspace(workspaceId)),
 };
-
-// Helpers sync (sin loading state) — útiles para datos que ya tenemos en bundle.
-export const sync = {
-  workspaces: () => workspaces,
-  workspace: (slug: string) => workspaceBySlug(slug),
-  pieces: (workspaceId: string) => piecesForWorkspace(workspaceId),
-  variantsForPiece: (id: string) => variantsForPiece(id),
-  variantsForWorkspace: (id: string) => variantsForWorkspace(id),
-  accounts: (workspaceId: string) => accountsForWorkspace(workspaceId),
-  allAccounts: () => socialAccounts,
-  brain: (workspaceId: string) => brainForWorkspace(workspaceId),
-  personas: (workspaceId: string) => personasForWorkspace(workspaceId),
-  hooks: (workspaceId: string) => hooksForWorkspace(workspaceId),
-  assets: (workspaceId: string) => assetsForWorkspace(workspaceId),
-  campaigns: (workspaceId: string) => campaignsForWorkspace(workspaceId),
-  audiences: (workspaceId: string) => audiencesForWorkspace(workspaceId),
-  apiKeys: (workspaceId: string) => apiKeysForWorkspace(workspaceId),
-  dailyMetrics: (workspaceId: string) => dailyMetricsForWorkspace(workspaceId),
-  accountMetrics: (workspaceId: string) => accountMetricsForWorkspace(workspaceId),
-  formatMetrics: (workspaceId: string) => formatMetricsForWorkspace(workspaceId),
-  rateLimits: () => rateLimits,
-  allPieces: () => contentPieces,
-  allVariants: () => platformVariants,
-  user: () => currentUser,
-};
-
-export const mockMode = USE_MOCK;
 
 export type WorkspaceWithCounts = Workspace & {
   pendingCount: number;
@@ -105,8 +157,9 @@ export type WorkspaceWithCounts = Workspace & {
 };
 
 export function workspacesWithCounts(): WorkspaceWithCounts[] {
-  return workspaces.map((w) => {
-    const pieces = piecesForWorkspace(w.id);
+  const ws = sync.workspaces();
+  return ws.map((w) => {
+    const pieces = sync.pieces(w.id);
     const pendingStatuses: ContentStatus[] = [
       "in_review",
       "changes_requested",
@@ -114,7 +167,7 @@ export function workspacesWithCounts(): WorkspaceWithCounts[] {
     ];
     const pending = pieces.filter((p) => pendingStatuses.includes(p.status)).length;
     const scheduled = pieces.filter((p) => p.status === "scheduled").length;
-    const accounts = accountsForWorkspace(w.id);
+    const accounts = sync.accounts(w.id);
     const lastPub = accounts
       .map((a) => a.lastPublishedAt)
       .filter(Boolean)

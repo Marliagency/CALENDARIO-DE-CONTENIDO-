@@ -1,9 +1,21 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
+import { tryAuth } from "../lib/auth-middleware.js";
 
 export async function workspacesRoutes(app: FastifyInstance) {
-  app.get("/", async () => {
+  app.get("/", async (req) => {
+    await tryAuth(req);
+    if (req.user) {
+      // Solo workspaces de los que el usuario es miembro.
+      const memberships = await prisma.workspaceMember.findMany({
+        where: { userId: req.user.id },
+        include: { workspace: true },
+        orderBy: { workspace: { sortOrder: "asc" } },
+      });
+      return { workspaces: memberships.map((m) => m.workspace) };
+    }
+    // Sin sesión (modo dev): todos.
     const workspaces = await prisma.workspace.findMany({
       orderBy: { sortOrder: "asc" },
     });

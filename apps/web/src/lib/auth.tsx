@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { mockMode } from "./api/client";
+import { dataCache } from "./api/data-cache";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
@@ -46,10 +47,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
-      if (res.ok) setUser(await res.json());
-      else setUser(null);
+      if (res.ok) {
+        const u: AuthUser = await res.json();
+        setUser(u);
+        // Pre-cargar todos los datos de los workspaces del usuario en caché.
+        if (u.workspaces && u.workspaces.length > 0) {
+          await dataCache.prefetchAll(u.workspaces.map((w) => w.slug));
+        }
+      } else {
+        setUser(null);
+        dataCache.reset();
+      }
     } catch {
       setUser(null);
+      dataCache.reset();
     } finally {
       setLoading(false);
     }
@@ -90,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     if (mockMode) {
-      // En modo mock no se cierra sesión.
       return;
     }
     await fetch(`${BASE}/api/v1/auth/logout`, {
@@ -98,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       credentials: "include",
     });
     setUser(null);
+    dataCache.reset();
   }
 
   useEffect(() => {
