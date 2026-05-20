@@ -1,0 +1,32 @@
+{
+  "name": "@pulse/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "dotenv -e ../../.env.local -- tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "dotenv -e ../../.env.local -- node dist/index.js",
+    "migrate": "dotenv -e ../../.env.local -- prisma migrate dev",
+    "migrate:deploy": "dotenv -e ../../.env.local -- prisma migrate deploy",
+    "generate": "prisma generate",
+    "db:reset": "dotenv -e ../../.env.local -- prisma migrate reset",
+    "db:seed": "dotenv -e ../../.env.local -- tsx prisma/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "9.0.1",
+    "@fastify/helmet": "11.1.1",
+    "@prisma/client": "5.15.0",
+    "@pulse/types": "workspace:*",
+    "fastify": "4.27.0",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "prisma": "5.15.0",
+    "tsx": "4.11.2",
+    "typescript": "5.4.5"
+  }
+}

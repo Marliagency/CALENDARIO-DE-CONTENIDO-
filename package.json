@@ -9,13 +9,20 @@
   },
   "packageManager": "pnpm@9.15.9",
   "scripts": {
+    "dev": "pnpm -r --parallel dev",
     "dev:web": "pnpm --filter @pulse/web dev",
     "dev:web:mock": "pnpm --filter @pulse/web dev",
+    "dev:api": "pnpm --filter @pulse/api dev",
     "build:web": "pnpm --filter @pulse/web build",
+    "migrate": "pnpm --filter @pulse/api migrate",
+    "migrate:deploy": "pnpm --filter @pulse/api migrate:deploy",
+    "db:reset": "pnpm --filter @pulse/api db:reset",
+    "db:seed": "pnpm --filter @pulse/api db:seed",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "typescript": "5.4.5"
   }
 }

@@ -1,0 +1,481 @@
+// Prisma schema — Pulse
+// Provider: SQLite en development (sin Docker, sin Postgres local).
+// Para producción, cambiar provider a "postgresql" y exportar DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// Users & Workspaces
+// =====================================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String?
+  name          String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspacesCreated Workspace[]
+  memberships       WorkspaceMember[]
+  contentPieces     ContentPiece[]
+  apiKeysCreated    WorkspaceApiKey[]
+  auditLogs         AuditLog[]
+}
+
+model Workspace {
+  id                   String   @id @default(uuid())
+  slug                 String   @unique
+  name                 String
+  description          String?
+  type                 String   // brand | personal | client | other
+  brandColorPrimary    String   @default("#3B82F6")
+  brandColorSecondary  String?
+  brandLogoUrl         String?
+  defaultTimezone      String   @default("Europe/Madrid")
+  defaultLanguage      String   @default("es-ES")
+  status               String   @default("active")
+  sortOrder            Int      @default(0)
+  createdById          String?
+  createdBy            User?    @relation(fields: [createdById], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  members           WorkspaceMember[]
+  brain             BrandBrain?
+  brandAssets       BrandAsset[]
+  personas          BuyerPersona[]
+  hooks             Hook[]
+  socialAccounts    SocialAccount[]
+  campaigns         Campaign[]
+  contentPieces     ContentPiece[]
+  platformVariants  PlatformVariant[]
+  publishJobs       PublishJob[]
+  adCampaigns       AdCampaign[]
+  audiencePresets   AudiencePreset[]
+  metrics           Metric[]
+  qcRules           QCRule[]
+  auditLogs         AuditLog[]
+  notificationChannels NotificationChannel[]
+  apiKeys           WorkspaceApiKey[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String    // owner | admin | editor | viewer
+  invitedAt   DateTime?
+  acceptedAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+// =====================================================
+// Brand Brain
+// =====================================================
+
+model BrandBrain {
+  id                   String   @id @default(uuid())
+  workspaceId          String   @unique
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  productDescription   String   @default("")
+  taglineMain          String   @default("")
+  taglinesAlt          String   @default("[]") // JSON array
+  problemSolved        String   @default("")
+  uniqueValueProp      String   @default("")
+  whatWeAreNot         String   @default("[]")
+  competitors          String   @default("[]")
+  techStackNotes       String?
+  pricingNotes         String?
+  monetizationNotes    String?
+  brandAdjectives      String   @default("[]")
+  howWeTalk            String   @default("")
+  howWeDontTalk        String   @default("[]")
+  copyApprovedExamples String   @default("[]")
+  copyRejectedExamples String   @default("[]")
+  claimsAllowed        String   @default("[]")
+  claimsForbidden      String   @default("[]")
+  disclaimersRequired  String   @default("[]")
+  updatedAt            DateTime @updatedAt
+  updatedById          String?
+}
+
+model BrandAsset {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  section         String
+  name            String
+  description     String?
+  fileUrl         String
+  fileType        String?
+  fileSizeBytes   Int?
+  thumbnailUrl    String?
+  tags            String   @default("[]")
+  metadata        String   @default("{}")
+  sortOrder       Int      @default(0)
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([workspaceId, section])
+}
+
+model BuyerPersona {
+  id                String   @id @default(uuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name              String
+  ageRange          String?
+  demographics      String?
+  dailyContext      String?
+  pains             String   @default("[]")
+  jtbdFunctional    String?
+  jtbdEmotional     String?
+  jtbdSocial        String?
+  objections        String   @default("[]")
+  workingHooks      String   @default("[]")
+  promise           String?
+  proof             String?
+  preferredCta      String?
+  preferredPlatforms String  @default("[]")
+  isProTarget       Boolean  @default(false)
+  avatarUrl         String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contentPieces ContentPiece[]
+  hooks         Hook[]
+}
+
+model Hook {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  text            String
+  personaId       String?
+  persona         BuyerPersona? @relation(fields: [personaId], references: [id])
+  format          String?
+  hypothesis      String?
+  testedAt        DateTime?
+  contentPieceId  String?
+  resultNotes     String?
+  createdAt       DateTime @default(now())
+}
+
+// =====================================================
+// Social Accounts
+// =====================================================
+
+model SocialAccount {
+  id                       String   @id @default(uuid())
+  workspaceId              String
+  workspace                Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  platform                 String
+  nickname                 String
+  handle                   String
+  displayName              String?
+  avatarUrl                String?
+  platformUserId           String?
+  platformPageId           String?
+  platformIgUserId         String?
+  platformAdvertiserId     String?
+  platformChannelId        String?
+  accessTokenEncrypted     String?
+  refreshTokenEncrypted    String?
+  tokenExpiresAt           DateTime?
+  tokenScope               String?
+  activeFormats            String   @default("[]")
+  isAdsEnabled             Boolean  @default(false)
+  status                   String   @default("healthy")
+  lastError                String?
+  lastPublishedAt          DateTime?
+  connectedAt              DateTime @default(now())
+  connectedById            String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  platformVariants PlatformVariant[]
+  publishJobs      PublishJob[]
+  rateLimits       ApiRateLimit[]
+
+  @@index([workspaceId, platform])
+}
+
+model ApiRateLimit {
+  id              String   @id @default(uuid())
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  date            String   // YYYY-MM-DD
+  postsUsed       Int      @default(0)
+  postsLimit      Int?
+  quotaUnitsUsed  Int      @default(0)
+  quotaUnitsLimit Int?
+
+  @@unique([socialAccountId, date])
+}
+
+// =====================================================
+// Content
+// =====================================================
+
+model Campaign {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  objective   String?
+  startAt     DateTime?
+  endAt       DateTime?
+  kpiName     String?
+  kpiTarget   Float?
+  notes       String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contentPieces ContentPiece[]
+}
+
+model ContentPiece {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  externalRef     String?  @unique
+  title           String
+  format          String
+  targetAccounts  String   @default("[]") // JSON array of social account IDs
+  buyerPersonaId  String?
+  buyerPersona    BuyerPersona? @relation(fields: [buyerPersonaId], references: [id])
+  campaignId      String?
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  frameworkUsed   String?
+  hookUsed        String?
+  conceptId       String?
+  status          String   @default("draft")
+  qcResults       String   @default("[]")
+  source          String   @default("manual")
+  notes           String?
+  createdById     String?
+  createdBy       User?    @relation(fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  variants PlatformVariant[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdAt])
+}
+
+model PlatformVariant {
+  id                     String   @id @default(uuid())
+  contentPieceId         String
+  contentPiece           ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  workspaceId            String
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccountId        String
+  socialAccount          SocialAccount @relation(fields: [socialAccountId], references: [id])
+  platform               String
+  mediaUrl               String?
+  thumbnailUrl           String?
+  mediaType              String?
+  ratio                  String?
+  durationS              Int?
+  caption                String?
+  hashtags               String   @default("[]")
+  firstComment           String?
+  musicRef               String?
+  ctaText                String?
+  ctaUrl                 String?
+  boostEnabled           Boolean  @default(false)
+  boostBudgetEur         Float    @default(0)
+  boostDurationDays      Int?
+  boostDailyBudgetEur    Float?
+  boostObjective         String?
+  boostAudiencePresetId  String?
+  boostPlatforms         String   @default("[]")
+  scheduledAt            DateTime?
+  publishedAt            DateTime?
+  platformPostId         String?
+  platformVideoId        String?
+  status                 String   @default("pending")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  publishJobs PublishJob[]
+  adCampaigns AdCampaign[]
+  metrics     Metric[]
+
+  @@index([workspaceId, scheduledAt])
+  @@index([contentPieceId])
+}
+
+model PublishJob {
+  id                String   @id @default(uuid())
+  platformVariantId String
+  platformVariant   PlatformVariant @relation(fields: [platformVariantId], references: [id], onDelete: Cascade)
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccountId   String
+  socialAccount     SocialAccount @relation(fields: [socialAccountId], references: [id])
+  status            String   @default("pending")
+  attempt           Int      @default(0)
+  maxAttempts       Int      @default(3)
+  lastError         String?
+  containerId       String?
+  idempotencyKey    String?  @unique
+  scheduledAt       DateTime?
+  executedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status, scheduledAt])
+}
+
+model AdCampaign {
+  id                  String   @id @default(uuid())
+  platformVariantId   String?
+  platformVariant     PlatformVariant? @relation(fields: [platformVariantId], references: [id])
+  workspaceId         String
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  platform            String
+  campaignIdExt       String?
+  adsetIdExt          String?
+  adIdExt             String?
+  totalBudgetEur      Float?
+  dailyBudgetCents    Int?
+  lifetimeBudgetCents Int?
+  spendCents          Int      @default(0)
+  status              String?
+  startedAt           DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model AudiencePreset {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  platform    String?
+  geo         String   @default("[]")
+  ageMin      Int?
+  ageMax      Int?
+  languages   String   @default("[]")
+  interests   String   @default("[]")
+  behaviors   String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =====================================================
+// Metrics & system
+// =====================================================
+
+model Metric {
+  id                 String   @id @default(uuid())
+  platformVariantId  String
+  platformVariant    PlatformVariant @relation(fields: [platformVariantId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  fetchedAt          DateTime
+  kind               String   // organic | paid
+  reach              Int?
+  impressions        Int?
+  views              Int?
+  likes              Int?
+  comments           Int?
+  shares             Int?
+  saves              Int?
+  profileVisits      Int?
+  follows            Int?
+  watchTimeS         Int?
+  completionRate     Float?
+  hookRate           Float?
+  holdRate           Float?
+  spendCents         Int?
+  cpmCents           Int?
+  cpcCents           Int?
+  ctr                Float?
+  cpaCents           Int?
+  roas               Float?
+  raw                String?
+  createdAt          DateTime @default(now())
+
+  @@index([platformVariantId, fetchedAt])
+}
+
+model QCRule {
+  id                 String   @id @default(uuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name               String
+  appliesToFormats   String   @default("[]")
+  appliesToPlatforms String   @default("[]")
+  ruleType           String
+  params             String   @default("{}")
+  severity           String   @default("warning")
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  entityType  String
+  entityId    String?
+  action      String
+  fromValue   String?
+  toValue     String?
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  actorIp     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+}
+
+model NotificationChannel {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind        String
+  target      String
+  events      String   @default("[]")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WorkspaceApiKey {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name         String
+  keyHash      String
+  keyPrefix    String   // sk_ws_xxxxxxxx
+  scopes       String   @default("[]")
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  createdById  String?
+  createdBy    User?    @relation(fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
