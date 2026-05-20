@@ -2,6 +2,8 @@ import type { PlatformAdapter } from "./types.js";
 import { metaAdapter } from "./meta.js";
 import { tiktokAdapter } from "./tiktok.js";
 import { youtubeAdapter } from "./youtube.js";
+import { linkedinAdapter } from "./linkedin.js";
+import { twitterAdapter } from "./twitter.js";
 import { simulateAdapter } from "./simulate.js";
 
 const REAL_REGISTRY: Record<string, PlatformAdapter | undefined> = {
@@ -9,13 +11,15 @@ const REAL_REGISTRY: Record<string, PlatformAdapter | undefined> = {
   facebook: metaAdapter,
   tiktok: tiktokAdapter,
   youtube: youtubeAdapter,
+  linkedin: linkedinAdapter,
+  twitter_x: twitterAdapter,
 };
 
 /**
  * Devuelve el adapter para una plataforma.
  *
- * Si `PULSE_SIMULATE_PUBLISH=1`, se usa el adapter de simulación para
- * todas las plataformas — útil para probar el ciclo end-to-end sin
+ * Si `PULSE_SIMULATE_PUBLISH=1`, se usa el adapter de simulacion para
+ * todas las plataformas — util para probar el ciclo end-to-end sin
  * credenciales OAuth reales.
  */
 export function adapterFor(platform: string): PlatformAdapter {
@@ -29,5 +33,12 @@ export function adapterFor(platform: string): PlatformAdapter {
   return adapter;
 }
 
-export { metaAdapter, tiktokAdapter, youtubeAdapter, simulateAdapter };
+export {
+  metaAdapter,
+  tiktokAdapter,
+  youtubeAdapter,
+  linkedinAdapter,
+  twitterAdapter,
+  simulateAdapter,
+};
 export type { PlatformAdapter } from "./types.js";

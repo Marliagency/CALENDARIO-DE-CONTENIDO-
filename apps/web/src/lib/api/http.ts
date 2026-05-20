@@ -152,6 +152,18 @@ export const http = {
     },
   ) => patch(`/api/v1/w/${slug}/queue/variants/${variantId}/boost`, body),
 
+  updateToken: (body: {
+    workspaceSlug: string;
+    accountId: string;
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt?: string;
+    platformUserId?: string;
+    platformIgUserId?: string;
+    platformPageId?: string;
+    platformChannelId?: string;
+  }) => post<{ ok: boolean }>(`/api/v1/oauth/update-token`, body),
+
   // Social accounts
   updateAccount: (
     slug: string,
