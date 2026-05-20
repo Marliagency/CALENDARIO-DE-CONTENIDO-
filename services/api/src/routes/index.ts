@@ -8,6 +8,7 @@ import { ingestRoutes } from "./ingest.js";
 import { campaignsRoutes } from "./campaigns.js";
 import { audiencesRoutes } from "./audiences.js";
 import { apiKeysRoutes } from "./api-keys.js";
+import { queueRoutes } from "./queue.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   await app.register(workspacesRoutes, { prefix: "/api/v1/workspaces" });
@@ -18,5 +19,6 @@ export async function registerRoutes(app: FastifyInstance) {
   await app.register(campaignsRoutes, { prefix: "/api/v1/w/:slug/campaigns" });
   await app.register(audiencesRoutes, { prefix: "/api/v1/w/:slug/audiences" });
   await app.register(apiKeysRoutes, { prefix: "/api/v1/w/:slug/api-keys" });
+  await app.register(queueRoutes, { prefix: "/api/v1/w/:slug/queue" });
   await app.register(ingestRoutes, { prefix: "/api/v1/ingest" });
 }
