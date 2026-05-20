@@ -152,6 +152,46 @@ export const http = {
     },
   ) => patch(`/api/v1/w/${slug}/queue/variants/${variantId}/boost`, body),
 
+  // Social accounts
+  updateAccount: (
+    slug: string,
+    id: string,
+    body: Partial<{
+      nickname: string;
+      handle: string;
+      activeFormats: string[];
+      isAdsEnabled: boolean;
+      status: "healthy" | "warning" | "expired" | "disabled";
+    }>,
+  ) => patch(`/api/v1/w/${slug}/social/accounts/${id}`, body),
+  deleteAccount: (slug: string, id: string) =>
+    fetch(`${BASE}/api/v1/w/${slug}/social/accounts/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
+
+  // OAuth / connection
+  oauthStart: (
+    platform: string,
+    workspaceSlug: string,
+  ) =>
+    get<{ configured: boolean; url?: string; state?: string; message?: string }>(
+      `/api/v1/oauth/${platform}/start?workspace=${workspaceSlug}`,
+    ),
+  devConnect: (body: {
+    workspaceSlug: string;
+    platform: string;
+    nickname: string;
+    handle: string;
+    activeFormats?: string[];
+  }) =>
+    post<{ id: string; handle: string; platform: string; note: string }>(
+      `/api/v1/oauth/dev-connect`,
+      body,
+    ),
+
   // Audit + analytics
   getAudit: (slug: string, limit = 100) =>
     get(`/api/v1/w/${slug}/audit?limit=${limit}`),

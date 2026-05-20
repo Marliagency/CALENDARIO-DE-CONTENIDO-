@@ -254,6 +254,48 @@ pulse/
 
 ---
 
+## Conectar cuentas de redes sociales
+
+### Realidad: OAuth real requiere App Review
+
+Para publicar de verdad en Instagram, Facebook, TikTok o YouTube hace falta
+**registrar una App** en cada plataforma y pasar su proceso de **App Review**
+(business verification, política de privacidad, demo en vídeo, etc.). Es un
+proceso que puede tardar semanas o meses y no se puede saltar.
+
+### Lo que sí funciona sin App Review
+
+1. **Conectar cuentas en modo dev-connect** (manual): al pulsar
+   &ldquo;Añadir cuenta&rdquo; en Settings → Conexiones se abre un formulario
+   que crea la cuenta con tokens dummy cifrados. La cuenta aparece como
+   conectada en la app y todo el flujo (calendar, queue, schedule, boost)
+   funciona normal.
+2. **Simulación de publicación** (`PULSE_SIMULATE_PUBLISH=1` en
+   `.env.local`, activo por defecto): cuando un job de publish se ejecuta,
+   en vez de llamar a la API real, simula la publicación (la pieza pasa a
+   `published`) y genera métricas dummy. Así puedes ver el ciclo entero:
+   programar → publicar → métricas → dashboard.
+
+### Cuando tengas App Review aprobado
+
+1. Pon las credenciales reales en `.env.local`:
+   ```ini
+   META_APP_ID="..."
+   META_APP_SECRET="..."
+   META_OAUTH_REDIRECT="https://tu-dominio.com/api/v1/oauth/instagram/callback"
+   TIKTOK_CLIENT_KEY="..."
+   TIKTOK_CLIENT_SECRET="..."
+   GOOGLE_CLIENT_ID="..."
+   GOOGLE_CLIENT_SECRET="..."
+   ```
+2. Cambia `PULSE_SIMULATE_PUBLISH=0`
+3. Implementa los adapters reales en `services/api/src/adapters/{meta,tiktok,youtube}.ts`
+   (actualmente son stubs — el contrato está definido en `adapters/types.ts`)
+4. El botón &ldquo;Añadir cuenta&rdquo; abrirá automáticamente el OAuth real
+   en vez del form dev-connect
+
+---
+
 ## Notas de producción
 
 - Cambiar `DATABASE_URL` a PostgreSQL: `postgresql://user:pass@host/db`

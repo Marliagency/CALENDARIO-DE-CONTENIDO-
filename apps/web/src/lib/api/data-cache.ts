@@ -218,6 +218,17 @@ export const dataCache = {
     cache.assets.push(asset);
     notify();
   },
+
+  async refetchAccounts(workspaceSlug: string) {
+    const ws = cache.workspaces.find((w) => w.slug === workspaceSlug);
+    if (!ws) return;
+    const fresh = (await http.getAccounts(workspaceSlug)) as SocialAccount[];
+    cache.accounts = [
+      ...cache.accounts.filter((a) => a.workspaceId !== ws.id),
+      ...fresh,
+    ];
+    notify();
+  },
 };
 
 export type { DataCache };
