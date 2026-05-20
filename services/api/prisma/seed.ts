@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/lib/passwords.js";
 
 const prisma = new PrismaClient();
 
@@ -10,10 +11,17 @@ async function main() {
   console.log("Seeding Pulse database (full)...");
 
   // ----- User -----
+  // Password demo: "pulse-demo-2026"
+  const passwordHash = await hashPassword("pulse-demo-2026");
   const user = await prisma.user.upsert({
     where: { email: "diego@qyro.app" },
-    update: {},
-    create: { id: USER_ID, email: "diego@qyro.app", name: "Diego" },
+    update: { passwordHash },
+    create: {
+      id: USER_ID,
+      email: "diego@qyro.app",
+      name: "Diego",
+      passwordHash,
+    },
   });
 
   // ----- Workspaces -----
@@ -317,7 +325,7 @@ async function main() {
   });
 
   console.log(`Seeded:
-  - 1 user (${user.email})
+  - 1 user (${user.email}) — password: pulse-demo-2026
   - 2 workspaces (qyro, personal)
   - 2 buyer personas
   - 6 social accounts (multi-cuenta por plataforma)

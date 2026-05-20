@@ -1,6 +1,7 @@
-import { Bell, ChevronDown, Menu } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { sync } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
 import { cn, getInitials } from "@/lib/utils";
 import type { Workspace } from "@pulse/types";
 
@@ -11,10 +12,18 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ workspace, onOpenSwitcher, onToggleSidebar }: AppHeaderProps) {
-  const user = sync.user();
+  const { user: authUser, logout } = useAuth();
+  const mockUser = sync.user();
+  const user = authUser ?? mockUser;
   const location = useLocation();
+  const navigate = useNavigate();
 
   const sectionTitle = useSectionTitle(location.pathname, workspace?.name);
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
 
   return (
     <header className="relative border-b border-border bg-surface">
@@ -64,10 +73,19 @@ export function AppHeader({ workspace, onOpenSwitcher, onToggleSidebar }: AppHea
             className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-hover"
           >
             <span className="grid size-7 place-items-center rounded-full bg-ws text-white text-xs font-semibold">
-              {getInitials(user.name)}
+              {getInitials(user.name ?? user.email ?? "?")}
             </span>
-            <span className="hidden md:inline">{user.name}</span>
+            <span className="hidden md:inline">{user.name ?? user.email}</span>
           </Link>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={handleLogout}
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+          >
+            <LogOut className="size-4" />
+          </button>
         </div>
       </div>
     </header>

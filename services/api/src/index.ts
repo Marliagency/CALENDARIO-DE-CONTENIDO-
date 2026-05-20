@@ -1,3 +1,4 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
@@ -11,6 +12,7 @@ async function main() {
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: config.corsOrigin, credentials: true });
+  await app.register(cookie, { secret: config.jwtSecret });
   await app.register(multipart, {
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max por upload
   });
