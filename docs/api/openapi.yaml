@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: Pulse API
+  version: 0.1.0
+  description: |
+    API REST de Pulse — herramienta personal de gestión de contenido y publicaciones
+    en redes sociales, multi-workspace.
+
+    ## Autenticación
+    - **Sesión web**: cookie JWT (no implementado todavía en v0.1.0).
+    - **Integraciones (SESIÓN 2)**: header `Authorization: Bearer sk_ws_xxx...` con scopes.
+
+    ## Aislamiento de workspace
+    Todas las rutas bajo `/api/v1/w/:slug/*` están scopeadas al workspace cuyo slug
+    aparece en la URL. El middleware `workspaceScope` valida que el workspace existe
+    (404 si no) y que el caller tiene acceso (403 si no).
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.pulse.local
+    description: Production (placeholder)
+
+paths:
+  /health:
+    get:
+      summary: Healthcheck
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  env: { type: string }
+                  time: { type: string, format: date-time }
+
+  /api/v1/workspaces:
+    get:
+      tags: [Workspaces]
+      summary: Lista de workspaces accesibles para el usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items: { $ref: "#/components/schemas/Workspace" }
+    post:
+      tags: [Workspaces]
+      summary: Crear workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+
+  /api/v1/workspaces/{slug}:
+    get:
+      tags: [Workspaces]
+      summary: Detalle de un workspace
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/w/{slug}/brain:
+    get:
+      tags: [Brand Brain]
+      summary: Brand Brain del workspace
+      description: |
+        Devuelve el documento de marca completo. Lo usa la SESIÓN 2 (studio creativo)
+        para tener contexto antes de generar piezas.
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      security:
+        - apiKey: [read_brain]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandBrain" }
+
+  /api/v1/w/{slug}/brain/personas:
+    get:
+      tags: [Brand Brain]
+      summary: Buyer personas del workspace
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      security:
+        - apiKey: [read_brain]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BuyerPersona" }
+
+  /api/v1/w/{slug}/brain/hooks:
+    get:
+      tags: [Brand Brain]
+      summary: Hook library del workspace
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      security:
+        - apiKey: [read_brain]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/w/{slug}/brain/assets:
+    get:
+      tags: [Brand Brain]
+      summary: Assets de marca (logos, screenshots, anuncios, documentos)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - in: query
+          name: section
+          schema:
+            type: string
+            enum: [logo, screenshot, ad_own, ad_reference, competitor_ref, document, moodboard, video_ref]
+      security:
+        - apiKey: [read_brain]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/w/{slug}/content/pieces:
+    get:
+      tags: [Content]
+      summary: Lista de piezas del workspace
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [draft, in_review, changes_requested, approved, scheduled, published, analyzed, rejected, failed, ingest_rejected]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/w/{slug}/content/pieces/{id}:
+    get:
+      tags: [Content]
+      summary: Detalle de pieza
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/w/{slug}/social/accounts:
+    get:
+      tags: [Social]
+      summary: Cuentas sociales conectadas (sin tokens)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/w/{slug}/metrics:
+    get:
+      tags: [Metrics]
+      summary: Métricas crudas (últimos 200 puntos)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      security:
+        - apiKey: [read_metrics]
+      responses:
+        "200":
+          description: OK
+
+  /api/v1/w/{slug}/campaigns:
+    get:
+      tags: [Settings]
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Settings]
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                objective: { type: string }
+                startAt: { type: string, format: date-time }
+                endAt: { type: string, format: date-time }
+                kpiName: { type: string }
+                kpiTarget: { type: number }
+      responses: { "201": { description: Created } }
+
+  /api/v1/w/{slug}/audiences:
+    get:
+      tags: [Settings]
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      responses: { "200": { description: OK } }
+
+  /api/v1/w/{slug}/api-keys:
+    get:
+      tags: [Settings]
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Settings]
+      summary: Crear API key
+      description: |
+        Devuelve el token completo en la respuesta. Es la única vez que se ve;
+        guárdalo de forma segura.
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scopes]
+              properties:
+                name: { type: string }
+                scopes:
+                  type: array
+                  items: { type: string, enum: [ingest, read_brain, read_metrics] }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  token: { type: string, example: "sk_ws_a8f3c9d1_xxxxxxxxxxxxxxxxxxxxxxxx" }
+                  keyPrefix: { type: string }
+                  scopes: { type: array, items: { type: string } }
+                  warning: { type: string }
+
+  /api/v1/ingest/content-pieces:
+    post:
+      tags: [Ingest (SESIÓN 2)]
+      summary: Ingesta de pieza desde el studio creativo
+      description: |
+        Endpoint de ingesta para SESIÓN 2. La API key determina a qué workspace
+        se asocia la pieza. Idempotente por `external_ref`: si llega un
+        `external_ref` que ya existe, devuelve 200 con la pieza existente.
+
+        Si una variante no especifica `social_account_id` ni `social_account_nickname`,
+        se asocia a la primera cuenta de la plataforma en ese workspace.
+
+        La pieza siempre entra en estado `in_review`.
+      security:
+        - apiKey: [ingest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngestRequest" }
+      responses:
+        "200":
+          description: Idempotent — pieza ya existía
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestResponse" }
+        "400":
+          description: Validation error
+        "401":
+          description: Missing or invalid API key
+        "409":
+          description: external_ref already exists in another workspace
+
+components:
+  parameters:
+    Slug:
+      in: path
+      name: slug
+      required: true
+      schema: { type: string, pattern: "^[a-z0-9-]+$" }
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: Bearer token `sk_ws_xxx`. Las API keys se crean desde Settings > API Keys.
+
+  schemas:
+    Workspace:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [brand, personal, client, other] }
+        description: { type: string, nullable: true }
+        brandColorPrimary: { type: string }
+        brandColorSecondary: { type: string, nullable: true }
+        defaultTimezone: { type: string }
+        defaultLanguage: { type: string }
+        status: { type: string, enum: [active, paused, archived] }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    WorkspaceCreate:
+      type: object
+      required: [slug, name, type]
+      properties:
+        slug: { type: string, pattern: "^[a-z0-9-]+$" }
+        name: { type: string }
+        type: { type: string, enum: [brand, personal, client, other] }
+        description: { type: string }
+        brandColorPrimary: { type: string }
+        brandColorSecondary: { type: string }
+
+    BrandBrain:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        workspaceId: { type: string, format: uuid }
+        productDescription: { type: string }
+        taglineMain: { type: string }
+        taglinesAlt: { type: array, items: { type: string } }
+        problemSolved: { type: string }
+        uniqueValueProp: { type: string }
+        whatWeAreNot: { type: array, items: { type: string } }
+        competitors:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              differentiator: { type: string }
+        brandAdjectives: { type: array, items: { type: string } }
+        howWeTalk: { type: string }
+        claimsAllowed: { type: array, items: { type: string } }
+        claimsForbidden: { type: array, items: { type: string } }
+        disclaimersRequired: { type: array, items: { type: string } }
+
+    BuyerPersona:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        ageRange: { type: string }
+        demographics: { type: string }
+        pains: { type: array, items: { type: string } }
+        workingHooks: { type: array, items: { type: string } }
+        preferredPlatforms: { type: array, items: { type: string } }
+        isProTarget: { type: boolean }
+
+    IngestRequest:
+      type: object
+      required: [external_ref, title, format, platform_variants]
+      properties:
+        external_ref:
+          type: string
+          description: UUID del CreativeRun en SESIÓN 2. Garantiza idempotencia.
+        title: { type: string }
+        format:
+          type: string
+          enum: [image, carousel, reel, ugc_video, app_demo, lifestyle_ad, short, post]
+        buyer_persona_id: { type: string }
+        framework_used: { type: string }
+        hook_used: { type: string }
+        creative_run_metadata:
+          type: object
+          description: Metadata libre del CreativeRun (tool, model, credits...).
+        platform_variants:
+          type: object
+          description: Mapa plataforma → variante. Claves admitidas - instagram, instagram_reel, instagram_feed, instagram_story, tiktok, facebook, facebook_reel, youtube, youtube_short, linkedin, pinterest, twitter_x
+          additionalProperties:
+            type: object
+            required: [media_url]
+            properties:
+              social_account_nickname: { type: string }
+              social_account_id: { type: string }
+              media_url: { type: string, format: uri }
+              ratio: { type: string, example: "9:16" }
+              duration_s: { type: integer }
+              caption: { type: string }
+              hashtags: { type: array, items: { type: string } }
+              first_comment: { type: string }
+              cta_text: { type: string }
+              cta_url: { type: string, format: uri }
+        suggested_schedule:
+          type: object
+          description: Mapa plataforma → ISO datetime sugerido.
+          additionalProperties: { type: string, format: date-time }
+        suggested_boost_budget_eur:
+          type: number
+          minimum: 0
+
+    IngestResponse:
+      type: object
+      properties:
+        content_piece_id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        status: { type: string, example: in_review }
+        platform_variants:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              platform: { type: string }
+              status: { type: string }
+        idempotent: { type: boolean }

@@ -13,6 +13,7 @@
     "generate": "prisma generate",
     "db:reset": "dotenv -e ../../.env.local -- prisma migrate reset",
     "db:seed": "dotenv -e ../../.env.local -- tsx prisma/seed.ts",
+    "test:isolation": "dotenv -e ../../.env.local -- tsx test/isolation.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @pulse/api exec prisma generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build web
+        run: pnpm build:web
+
+      - name: Apply migrations (SQLite ephemeral)
+        env:
+          DATABASE_URL: "file:./ci.db"
+        run: pnpm --filter @pulse/api exec prisma migrate deploy
+
+      - name: Seed
+        env:
+          DATABASE_URL: "file:./ci.db"
+        run: pnpm --filter @pulse/api exec tsx prisma/seed.ts
+
+      - name: Start API
+        env:
+          DATABASE_URL: "file:./ci.db"
+          JWT_SECRET: ci-secret-do-not-use
+          ENCRYPTION_KEY: ci-encryption-key-32bytes!!!!!!!
+        run: |
+          pnpm --filter @pulse/api exec tsx src/index.ts &
+          echo $! > api.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "API failed to start"
+          exit 1
+
+      - name: Run isolation tests
+        env:
+          DATABASE_URL: "file:./ci.db"
+        run: pnpm --filter @pulse/api exec tsx test/isolation.test.ts
+
+      - name: Stop API
+        if: always()
+        run: kill $(cat api.pid) || true
