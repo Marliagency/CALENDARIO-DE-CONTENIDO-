@@ -33,8 +33,20 @@ async function safeText(res: Response): Promise<string> {
 }
 
 export class HttpError extends Error {
+  retryAfterSec?: number;
   constructor(public status: number, public bodyText: string) {
     super(`HTTP ${status}: ${bodyText}`);
+    if (status === 429) {
+      try {
+        const body = JSON.parse(bodyText);
+        this.retryAfterSec = body.retryAfterSec;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  get isRateLimit() {
+    return this.status === 429;
   }
 }
 

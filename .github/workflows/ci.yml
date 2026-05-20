@@ -56,6 +56,8 @@ jobs:
           DATABASE_URL: "file:./ci.db"
           JWT_SECRET: ci-secret-do-not-use
           ENCRYPTION_KEY: ci-encryption-key-32bytes!!!!!!!
+          PULSE_DISABLE_RATE_LIMIT: "1"
+          PULSE_DISABLE_JOBS: "1"
         run: |
           pnpm --filter @pulse/api exec tsx src/index.ts &
           echo $! > api.pid

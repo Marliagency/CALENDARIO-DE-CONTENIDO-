@@ -27,9 +27,18 @@ function setSessionCookie(reply: any, token: string) {
   });
 }
 
+// Rate limit estricto para login/register: 10 req/min por IP — anti brute-force.
+const AUTH_LIMIT = {
+  rateLimit: {
+    max: 10,
+    timeWindow: "1 minute",
+    keyGenerator: (req: any) => `auth:${req.ip}`,
+  },
+};
+
 export async function authRoutes(app: FastifyInstance) {
   // ---------- POST /register ----------
-  app.post("/register", async (req, reply) => {
+  app.post("/register", { config: AUTH_LIMIT }, async (req, reply) => {
     const body = registerSchema.safeParse(req.body);
     if (!body.success) return reply.status(400).send({ error: body.error.flatten() });
 
@@ -61,7 +70,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // ---------- POST /login ----------
-  app.post("/login", async (req, reply) => {
+  app.post("/login", { config: AUTH_LIMIT }, async (req, reply) => {
     const body = loginSchema.safeParse(req.body);
     if (!body.success) return reply.status(400).send({ error: body.error.flatten() });
 

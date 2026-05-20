@@ -49,7 +49,21 @@ const PLATFORM_KEYS: Record<string, string> = {
 export async function ingestRoutes(app: FastifyInstance) {
   app.post(
     "/content-pieces",
-    { preHandler: requireApiKey("ingest") },
+    {
+      preHandler: requireApiKey("ingest"),
+      // Bucket más estricto: 60/min por API key. Una pieza con N variants
+      // consume 1 request. SESIÓN 2 nunca debería superar esto.
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: "1 minute",
+          keyGenerator: (req: any) => {
+            const auth = req.headers.authorization;
+            return auth?.startsWith("Bearer ") ? `apikey:${auth.slice(7, 22)}` : req.ip;
+          },
+        },
+      },
+    },
     async (req, reply) => {
       const workspaceId = req.apiKey!.workspaceId;
 

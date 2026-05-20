@@ -100,6 +100,9 @@ importers:
       '@fastify/multipart':
         specifier: 8.3.0
         version: 8.3.0
+      '@fastify/rate-limit':
+        specifier: 9.1.0
+        version: 9.1.0
       '@prisma/client':
         specifier: 5.15.0
         version: 5.15.0(prisma@5.15.0)
@@ -387,6 +390,9 @@ packages:
   '@fastify/multipart@8.3.0':
     resolution: {integrity: sha512-A8h80TTyqUzaMVH0Cr9Qcm6RxSkVqmhK/MVBYHYeRRSUbUYv08WecjWKSlG2aSnD4aGI841pVxAjC+G1GafUeQ==}
 
+  '@fastify/rate-limit@9.1.0':
+    resolution: {integrity: sha512-h5dZWCkuZXN0PxwqaFQLxeln8/LNwQwH9popywmDCFdKfgpi4b/HoMH1lluy6P+30CG9yzzpSpwTCIPNB9T1JA==}
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -402,6 +408,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lukeed/ms@2.0.2':
+    resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
+    engines: {node: '>=8'}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1533,6 +1543,12 @@ snapshots:
       secure-json-parse: 2.7.0
       stream-wormhole: 1.1.0
 
+  '@fastify/rate-limit@9.1.0':
+    dependencies:
+      '@lukeed/ms': 2.0.2
+      fastify-plugin: 4.5.1
+      toad-cache: 3.7.1
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -1551,6 +1567,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lukeed/ms@2.0.2': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
