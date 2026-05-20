@@ -94,14 +94,19 @@ export const sync = {
       ? apiKeysForWorkspace(workspaceId)
       : dataCache.apiKeys.filter((k) => k.workspaceId === workspaceId),
 
-  // Métricas agregadas — solo existen como derivadas en mock-data.
-  // En HTTP mode actualmente devolvemos vacío hasta tener un endpoint específico.
+  // Métricas agregadas: mock-data o cache HTTP (poblada al login con prefetch).
   dailyMetrics: (workspaceId: string) =>
-    USE_MOCK ? dailyMetricsForWorkspace(workspaceId) : [],
+    USE_MOCK
+      ? dailyMetricsForWorkspace(workspaceId)
+      : dataCache.dailyMetrics.filter((m) => m.workspaceId === workspaceId),
   accountMetrics: (workspaceId: string) =>
-    USE_MOCK ? accountMetricsForWorkspace(workspaceId) : [],
+    USE_MOCK
+      ? accountMetricsForWorkspace(workspaceId)
+      : dataCache.accountMetrics.filter((m) => m.workspaceId === workspaceId),
   formatMetrics: (workspaceId: string) =>
-    USE_MOCK ? formatMetricsForWorkspace(workspaceId) : [],
+    USE_MOCK
+      ? formatMetricsForWorkspace(workspaceId)
+      : dataCache.formatMetrics.filter((m) => m.workspaceId === workspaceId),
 
   rateLimits: () => (USE_MOCK ? rateLimits : []),
 

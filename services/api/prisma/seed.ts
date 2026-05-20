@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/passwords.js";
+import { generateDummyMetricsForWorkspace } from "../src/lib/metrics-generator.js";
 
 const prisma = new PrismaClient();
 
@@ -305,6 +306,108 @@ async function main() {
       scheduledAt: new Date("2026-05-23T19:00:00Z"),
     },
   });
+
+  // Piezas publicadas en el pasado para alimentar métricas históricas.
+  const now = Date.now();
+  const publishedPieces = [
+    {
+      id: "piece-published-1",
+      format: "ugc_video",
+      title: "POV: Notion no es la respuesta",
+      hookUsed: "POV: tienes 5 apps...",
+      daysAgo: 5,
+      variants: [
+        { id: "var-pub-1-tt", platform: "tiktok", socialAccountId: "acc-qyro-tt-app", ratio: "9:16", durationS: 18, boostBudgetEur: 4, boostDurationDays: 2 },
+        { id: "var-pub-1-ig", platform: "instagram", socialAccountId: "acc-qyro-ig-app", ratio: "9:16", durationS: 18 },
+      ],
+    },
+    {
+      id: "piece-published-2",
+      format: "reel",
+      title: "Mi Life Score subió 40 puntos",
+      hookUsed: "Testimonial",
+      daysAgo: 3,
+      variants: [
+        { id: "var-pub-2-ig", platform: "instagram", socialAccountId: "acc-qyro-ig-app", ratio: "9:16", durationS: 25 },
+      ],
+    },
+    {
+      id: "piece-published-3",
+      format: "carousel",
+      title: "Tu Life Score explicado",
+      daysAgo: 6,
+      variants: [
+        { id: "var-pub-3-ig", platform: "instagram", socialAccountId: "acc-qyro-ig-app", ratio: "1:1" },
+      ],
+    },
+    {
+      id: "piece-published-4",
+      format: "app_demo",
+      title: "Demo dashboard QYRO",
+      daysAgo: 4,
+      variants: [
+        { id: "var-pub-4-tt", platform: "tiktok", socialAccountId: "acc-qyro-tt-latam", ratio: "9:16", durationS: 30 },
+      ],
+    },
+    {
+      id: "piece-published-5",
+      format: "image",
+      title: "Pricing claro Pro 4,99€",
+      daysAgo: 2,
+      variants: [
+        { id: "var-pub-5-fb", platform: "facebook", socialAccountId: "acc-qyro-fb-page", ratio: "1:1" },
+      ],
+    },
+  ];
+
+  for (const p of publishedPieces) {
+    const publishedAt = new Date(now - p.daysAgo * 24 * 60 * 60 * 1000);
+    await prisma.contentPiece.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id,
+        workspaceId: qyro.id,
+        title: p.title,
+        format: p.format,
+        targetAccounts: JSON.stringify(p.variants.map((v) => v.socialAccountId)),
+        hookUsed: p.hookUsed,
+        status: "published",
+        source: "studio",
+        createdAt: publishedAt,
+        updatedAt: publishedAt,
+      },
+    });
+    for (const v of p.variants) {
+      await prisma.platformVariant.upsert({
+        where: { id: v.id },
+        update: {},
+        create: {
+          id: v.id,
+          contentPieceId: p.id,
+          workspaceId: qyro.id,
+          socialAccountId: v.socialAccountId,
+          platform: v.platform,
+          mediaUrl: "https://example.com/asset.mp4",
+          ratio: v.ratio,
+          durationS: v.durationS,
+          status: "published",
+          publishedAt,
+          scheduledAt: publishedAt,
+          boostEnabled: !!(v as any).boostBudgetEur,
+          boostBudgetEur: (v as any).boostBudgetEur ?? 0,
+          boostDurationDays: (v as any).boostDurationDays,
+          boostDailyBudgetEur: (v as any).boostDurationDays
+            ? (v as any).boostBudgetEur / (v as any).boostDurationDays
+            : undefined,
+        },
+      });
+    }
+  }
+
+  // Generar métricas históricas de 7 días para todas las variants.
+  const m = await generateDummyMetricsForWorkspace(qyro.id, 7);
+  console.log(`  - Generated ${m.metrics} metrics across ${m.variants} variants`);
 
   // API key para SESIÓN 2 (con hash sha256 conocido para tests)
   // sk_ws_a8f3c9d1_KNOWN_TEST_KEY -> hash determinista

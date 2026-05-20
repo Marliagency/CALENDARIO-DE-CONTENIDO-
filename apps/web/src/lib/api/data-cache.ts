@@ -23,6 +23,11 @@ import type {
   Workspace,
   WorkspaceApiKey,
 } from "@pulse/types";
+import type {
+  AccountMetric,
+  DailyMetric,
+  FormatMetric,
+} from "@pulse/mock-data";
 import { http } from "./http";
 
 interface DataCache {
@@ -37,6 +42,9 @@ interface DataCache {
   campaigns: Campaign[];
   audiences: AudiencePreset[];
   apiKeys: WorkspaceApiKey[];
+  dailyMetrics: DailyMetric[];
+  accountMetrics: AccountMetric[];
+  formatMetrics: FormatMetric[];
   loaded: boolean;
   lastError: string | null;
 }
@@ -53,6 +61,9 @@ const cache: DataCache = {
   campaigns: [],
   audiences: [],
   apiKeys: [],
+  dailyMetrics: [],
+  accountMetrics: [],
+  formatMetrics: [],
   loaded: false,
   lastError: null,
 };
@@ -75,6 +86,9 @@ export const dataCache = {
   get campaigns() { return cache.campaigns; },
   get audiences() { return cache.audiences; },
   get apiKeys() { return cache.apiKeys; },
+  get dailyMetrics() { return cache.dailyMetrics; },
+  get accountMetrics() { return cache.accountMetrics; },
+  get formatMetrics() { return cache.formatMetrics; },
   get loaded() { return cache.loaded; },
   get lastError() { return cache.lastError; },
 
@@ -95,6 +109,9 @@ export const dataCache = {
     cache.campaigns = [];
     cache.audiences = [];
     cache.apiKeys = [];
+    cache.dailyMetrics = [];
+    cache.accountMetrics = [];
+    cache.formatMetrics = [];
     cache.loaded = false;
     cache.lastError = null;
     notify();
@@ -121,6 +138,9 @@ export const dataCache = {
       cache.campaigns = [];
       cache.audiences = [];
       cache.apiKeys = [];
+      cache.dailyMetrics = [];
+      cache.accountMetrics = [];
+      cache.formatMetrics = [];
 
       for (const ws of cache.workspaces) {
         const [
@@ -133,6 +153,9 @@ export const dataCache = {
           campaigns,
           audiences,
           apiKeys,
+          daily,
+          byAccount,
+          byFormat,
         ] = await Promise.all([
           http.getPieces(ws.slug) as Promise<ContentPiece[]>,
           http.getAccounts(ws.slug) as Promise<SocialAccount[]>,
@@ -143,9 +166,11 @@ export const dataCache = {
           http.getCampaigns(ws.slug) as Promise<Campaign[]>,
           http.getAudiences(ws.slug) as Promise<AudiencePreset[]>,
           http.getApiKeys(ws.slug) as Promise<WorkspaceApiKey[]>,
+          http.getDailyMetrics(ws.slug, 7) as Promise<DailyMetric[]>,
+          http.getAccountMetrics(ws.slug) as Promise<AccountMetric[]>,
+          http.getFormatMetrics(ws.slug) as Promise<FormatMetric[]>,
         ]);
 
-        // Los endpoints de pieces incluyen `variants` embebidos. Los extraemos.
         for (const p of pieces) {
           cache.pieces.push(p);
           const v = (p as ContentPiece & { variants?: PlatformVariant[] }).variants;
@@ -159,6 +184,9 @@ export const dataCache = {
         cache.campaigns.push(...campaigns);
         cache.audiences.push(...audiences);
         cache.apiKeys.push(...apiKeys);
+        cache.dailyMetrics.push(...daily);
+        cache.accountMetrics.push(...byAccount);
+        cache.formatMetrics.push(...byFormat);
       }
 
       cache.loaded = true;

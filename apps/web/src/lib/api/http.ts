@@ -109,6 +109,12 @@ export const http = {
 
   getMetricsSummary: (slug: string) =>
     get(`/api/v1/w/${slug}/metrics/summary`),
+  getDailyMetrics: (slug: string, days = 7) =>
+    get(`/api/v1/w/${slug}/metrics/daily?days=${days}`),
+  getAccountMetrics: (slug: string) =>
+    get(`/api/v1/w/${slug}/metrics/by-account`),
+  getFormatMetrics: (slug: string) =>
+    get(`/api/v1/w/${slug}/metrics/by-format`),
 
   // Queue actions
   approvePiece: (slug: string, id: string) =>
