@@ -33,7 +33,7 @@ export async function enqueueJob<K extends JobKind>(
  * En SQLite no hay SELECT FOR UPDATE SKIP LOCKED, pero como solo hay un worker
  * en development, es suficiente.
  */
-export async function tick(handlers: Record<string, (payload: any) => Promise<void>>) {
+export async function tick(handlers: Record<string, (payload: any) => Promise<unknown>>) {
   const now = new Date();
   const next = await prisma.job.findFirst({
     where: { status: "pending", runAt: { lte: now } },

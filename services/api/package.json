@@ -14,6 +14,7 @@
     "db:reset": "dotenv -e ../../.env.local -- prisma migrate reset",
     "db:seed": "dotenv -e ../../.env.local -- tsx prisma/seed.ts",
     "test:isolation": "dotenv -e ../../.env.local -- tsx test/isolation.test.ts",
+    "test:unit": "dotenv -e ../../.env.local -- node --import tsx --test test/crypto.test.ts test/qc-engine.test.ts test/api-key.test.ts test/json.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

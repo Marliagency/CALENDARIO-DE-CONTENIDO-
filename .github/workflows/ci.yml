@@ -34,6 +34,13 @@ jobs:
       - name: Build web
         run: pnpm build:web
 
+      - name: Unit tests
+        env:
+          DATABASE_URL: "file:./unit.db"
+          JWT_SECRET: ci-secret-do-not-use
+          ENCRYPTION_KEY: ci-encryption-key-32bytes!!!!!!!
+        run: pnpm --filter @pulse/api exec node --import tsx --test test/crypto.test.ts test/qc-engine.test.ts test/api-key.test.ts test/json.test.ts
+
       - name: Apply migrations (SQLite ephemeral)
         env:
           DATABASE_URL: "file:./ci.db"
