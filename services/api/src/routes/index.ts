@@ -12,6 +12,8 @@ import { queueRoutes } from "./queue.js";
 import { oauthRoutes } from "./oauth.js";
 import { webhookRoutes } from "./webhooks.js";
 import { storageRoutes } from "./storage.js";
+import { uploadsRoutes } from "./uploads.js";
+import { auditRoutes } from "./audit.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   await app.register(workspacesRoutes, { prefix: "/api/v1/workspaces" });
@@ -23,6 +25,8 @@ export async function registerRoutes(app: FastifyInstance) {
   await app.register(audiencesRoutes, { prefix: "/api/v1/w/:slug/audiences" });
   await app.register(apiKeysRoutes, { prefix: "/api/v1/w/:slug/api-keys" });
   await app.register(queueRoutes, { prefix: "/api/v1/w/:slug/queue" });
+  await app.register(uploadsRoutes, { prefix: "/api/v1/w/:slug/uploads" });
+  await app.register(auditRoutes, { prefix: "/api/v1/w/:slug/audit" });
   await app.register(oauthRoutes, { prefix: "/api/v1/oauth" });
   await app.register(webhookRoutes, { prefix: "/api/v1/webhooks" });
   await app.register(storageRoutes, { prefix: "/storage" });

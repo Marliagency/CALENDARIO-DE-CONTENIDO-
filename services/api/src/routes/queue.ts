@@ -1,10 +1,31 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
+import { runQc } from "../lib/qc-engine.js";
+import { stringifyJSON } from "../lib/json.js";
 import { workspaceScope } from "../lib/workspace-scope.js";
 
 export async function queueRoutes(app: FastifyInstance) {
   app.addHook("preHandler", workspaceScope);
+
+  // ---------- QC run ----------
+  app.post<{ Params: { slug: string; id: string } }>(
+    "/pieces/:id/qc",
+    async (req, reply) => {
+      const piece = await prisma.contentPiece.findFirst({
+        where: { id: req.params.id, workspaceId: req.workspaceId! },
+        include: { variants: true },
+      });
+      if (!piece) return reply.status(404).send({ error: "Not found" });
+
+      const results = await runQc(piece, piece.variants);
+      await prisma.contentPiece.update({
+        where: { id: piece.id },
+        data: { qcResults: stringifyJSON(results) },
+      });
+      return { results };
+    },
+  );
 
   // ---------- Aprobar ----------
   app.post<{ Params: { slug: string; id: string } }>(

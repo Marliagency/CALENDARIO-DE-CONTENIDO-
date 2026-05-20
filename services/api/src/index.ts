@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import { config } from "./config.js";
 import { startJobRunner } from "./jobs/runner.js";
@@ -10,6 +11,9 @@ async function main() {
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: config.corsOrigin, credentials: true });
+  await app.register(multipart, {
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max por upload
+  });
 
   await registerRoutes(app);
 

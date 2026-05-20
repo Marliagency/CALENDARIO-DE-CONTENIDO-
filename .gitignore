@@ -14,3 +14,4 @@ coverage
 *.tsbuildinfo
 dev.db
 dev.db-journal
+services/api/storage/
