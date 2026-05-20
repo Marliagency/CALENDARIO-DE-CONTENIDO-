@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: "qc-rules", label: "Reglas QC" },
   { id: "notifications", label: "Notificaciones" },
   { id: "api-keys", label: "API Keys" },
+  { id: "audit", label: "Audit log" },
 ];
 
 export function SettingsLayout() {

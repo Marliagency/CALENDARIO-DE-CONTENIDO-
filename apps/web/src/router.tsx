@@ -21,6 +21,7 @@ import { SettingsCampaignsPage } from "@/pages/workspace/settings/SettingsCampai
 import { SettingsQcRulesPage } from "@/pages/workspace/settings/SettingsQcRulesPage";
 import { SettingsNotificationsPage } from "@/pages/workspace/settings/SettingsNotificationsPage";
 import { SettingsApiKeysPage } from "@/pages/workspace/settings/SettingsApiKeysPage";
+import { SettingsAuditPage } from "@/pages/workspace/settings/SettingsAuditPage";
 import { ProfilePage } from "@/pages/account/ProfilePage";
 import { PreferencesPage } from "@/pages/account/PreferencesPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
               { path: "qc-rules", element: <SettingsQcRulesPage /> },
               { path: "notifications", element: <SettingsNotificationsPage /> },
               { path: "api-keys", element: <SettingsApiKeysPage /> },
+              { path: "audit", element: <SettingsAuditPage /> },
             ],
           },
         ],
