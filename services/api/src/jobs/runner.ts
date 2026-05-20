@@ -1,7 +1,11 @@
 import { enqueueJob, tick } from "../lib/jobs.js";
 import { publishHandler } from "./publish-handler.js";
 import { publishScheduler } from "./scheduler.js";
-import { scheduleTokenRefreshes, tokenRefreshHandler } from "./token-refresh-handler.js";
+import {
+  notifyExpiringTokens,
+  scheduleTokenRefreshes,
+  tokenRefreshHandler,
+} from "./token-refresh-handler.js";
 import { pullMetricsHandler } from "./metrics-handler.js";
 import { prisma } from "../db.js";
 
@@ -70,6 +74,7 @@ export function startJobRunner(opts?: {
   }, schedulerInterval);
 
   // Token refresh scheduler — encola refresh para tokens próximos a expirar
+  // y notifica tokens entre 1-7 días antes de expirar.
   setInterval(async () => {
     try {
       const accounts = await scheduleTokenRefreshes();
@@ -79,6 +84,7 @@ export function startJobRunner(opts?: {
       if (accounts.length > 0) {
         console.log(`[token-refresh] enqueued ${accounts.length} refresh jobs`);
       }
+      await notifyExpiringTokens();
     } catch (err) {
       console.error("[token-refresh-scheduler] error", err);
     }

@@ -1,9 +1,10 @@
-import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import { ChevronDown, LogOut, Menu } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { sync } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { cn, getInitials } from "@/lib/utils";
 import type { Workspace } from "@pulse/types";
+import { NotificationBell } from "./NotificationBell";
 
 interface AppHeaderProps {
   workspace?: Workspace | null;
@@ -60,14 +61,7 @@ export function AppHeader({ workspace, onOpenSwitcher, onToggleSidebar }: AppHea
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="relative btn-ghost"
-            aria-label="Notificaciones"
-          >
-            <Bell className="size-4" />
-            <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-amber-400" />
-          </button>
+          <NotificationBell />
           <Link
             to="/account/profile"
             className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-hover"

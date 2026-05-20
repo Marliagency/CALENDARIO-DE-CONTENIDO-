@@ -15,9 +15,11 @@ import { storageRoutes } from "./storage.js";
 import { uploadsRoutes } from "./uploads.js";
 import { auditRoutes } from "./audit.js";
 import { authRoutes } from "./auth.js";
+import { notificationsRoutes } from "./notifications.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
+  await app.register(notificationsRoutes, { prefix: "/api/v1/notifications" });
   await app.register(workspacesRoutes, { prefix: "/api/v1/workspaces" });
   await app.register(brainRoutes, { prefix: "/api/v1/w/:slug/brain" });
   await app.register(contentRoutes, { prefix: "/api/v1/w/:slug/content" });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { stringifyJSON } from "../lib/json.js";
 import { requireApiKey } from "../lib/api-key-auth.js";
+import { notifyPieceInReview } from "../lib/notifications.js";
 
 const variantSchema = z.object({
   social_account_nickname: z.string().optional(),
@@ -145,6 +146,15 @@ export async function ingestRoutes(app: FastifyInstance) {
           platform: variant.platform,
           status: variant.status,
         });
+      }
+
+      // Notificar a miembros del workspace que llegó una pieza nueva.
+      const ws = await prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { slug: true },
+      });
+      if (ws) {
+        await notifyPieceInReview(workspaceId, piece.id, piece.title, ws.slug);
       }
 
       return reply.status(201).send({

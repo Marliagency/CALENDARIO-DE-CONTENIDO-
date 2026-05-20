@@ -2,15 +2,8 @@ import { prisma } from "../db.js";
 import { adapterFor } from "../adapters/index.js";
 import { decrypt, encrypt } from "../lib/crypto.js";
 import type { JobPayload } from "../lib/jobs.js";
+import { notifyTokenExpiring } from "../lib/notifications.js";
 
-/**
- * Renueva el access token de una cuenta social.
- *
- * En esta fase los adapters reales no están implementados, así que el handler
- * solo se ejerce contra cuentas creadas vía dev-connect (cuyos tokens son
- * mock). Cuando se complete la integración Meta/TikTok/YouTube, este handler
- * funcionará sin cambios.
- */
 export async function tokenRefreshHandler(payload: JobPayload["refresh_token"]) {
   const account = await prisma.socialAccount.findUnique({
     where: { id: payload.socialAccountId },
@@ -41,21 +34,12 @@ export async function tokenRefreshHandler(payload: JobPayload["refresh_token"]) 
     const msg = err instanceof Error ? err.message : String(err);
     await prisma.socialAccount.update({
       where: { id: account.id },
-      data: {
-        status: "needs_reauth",
-        lastError: msg,
-      },
+      data: { status: "needs_reauth", lastError: msg },
     });
     throw err;
   }
 }
 
-/**
- * Programa jobs de refresh para todas las cuentas cuyos tokens expiran
- * en las próximas 24h (excluyendo las ya en needs_reauth/disconnected).
- *
- * Se llama desde el scheduler cada hora.
- */
 export async function scheduleTokenRefreshes() {
   const soon = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const accounts = await prisma.socialAccount.findMany({
@@ -66,4 +50,42 @@ export async function scheduleTokenRefreshes() {
     },
   });
   return accounts;
+}
+
+/**
+ * Notifica a workspaces con tokens próximos a expirar (1d - 7d).
+ * Se ejecuta una vez al día como parte del job runner.
+ */
+export async function notifyExpiringTokens() {
+  const min = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const max = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const accounts = await prisma.socialAccount.findMany({
+    where: {
+      tokenExpiresAt: { gte: min, lte: max },
+    },
+    include: { workspace: true },
+  });
+  for (const acc of accounts) {
+    if (!acc.tokenExpiresAt) continue;
+    const daysLeft = Math.ceil(
+      (acc.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+    );
+    // Evitar duplicados: si ya notificamos en las últimas 24h, skip.
+    const existing = await prisma.notification.findFirst({
+      where: {
+        entityType: "SocialAccount",
+        entityId: acc.id,
+        kind: "token_expiring",
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+    if (existing) continue;
+    await notifyTokenExpiring(
+      acc.workspaceId,
+      acc.id,
+      acc.handle,
+      acc.workspace.slug,
+      daysLeft,
+    );
+  }
 }

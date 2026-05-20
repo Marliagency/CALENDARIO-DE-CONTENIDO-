@@ -2,6 +2,7 @@ import { prisma } from "../db.js";
 import { adapterFor } from "../adapters/index.js";
 import { decrypt } from "../lib/crypto.js";
 import type { JobPayload } from "../lib/jobs.js";
+import { notifyPublishFailed } from "../lib/notifications.js";
 
 /**
  * Handler del job "publish" — toma una PlatformVariant y la publica
@@ -58,6 +59,23 @@ export async function publishHandler(payload: JobPayload["publish"]) {
       where: { id: variant.id },
       data: { status: "failed" },
     });
+    const ws = await prisma.workspace.findUnique({
+      where: { id: variant.workspaceId },
+      select: { slug: true },
+    });
+    const piece = await prisma.contentPiece.findUnique({
+      where: { id: variant.contentPieceId },
+      select: { title: true },
+    });
+    if (ws && piece) {
+      await notifyPublishFailed(
+        variant.workspaceId,
+        variant.id,
+        piece.title,
+        err instanceof Error ? err.message : String(err),
+        ws.slug,
+      );
+    }
     throw err;
   }
 }

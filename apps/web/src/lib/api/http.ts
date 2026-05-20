@@ -147,6 +147,37 @@ export const http = {
   // Dev-only
   generateDummyMetrics: (slug: string) =>
     post(`/api/v1/w/${slug}/metrics/generate-dummy`, {}),
+
+  // Notifications
+  getNotifications: (unreadOnly = false, limit = 50) =>
+    get<{ items: Notification[]; unreadCount: number }>(
+      `/api/v1/notifications?unreadOnly=${unreadOnly}&limit=${limit}`,
+    ),
+  markNotificationRead: (id: string) =>
+    post(`/api/v1/notifications/${id}/read`, {}),
+  markAllRead: () => post(`/api/v1/notifications/read-all`, {}),
+  dismissNotification: (id: string) =>
+    fetch(`${BASE}/api/v1/notifications/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
 };
+
+export interface Notification {
+  id: string;
+  workspaceId?: string;
+  userId?: string;
+  kind: string;
+  severity: "info" | "warning" | "error";
+  title: string;
+  body?: string;
+  entityType?: string;
+  entityId?: string;
+  url?: string;
+  readAt?: string;
+  createdAt: string;
+}
 
 export const isHttpMode = import.meta.env.VITE_MOCK_API !== "1";

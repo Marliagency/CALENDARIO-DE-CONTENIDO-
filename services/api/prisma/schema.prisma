@@ -29,6 +29,7 @@ model User {
   contentPieces     ContentPiece[]
   apiKeysCreated    WorkspaceApiKey[]
   auditLogs         AuditLog[]
+  notifications     Notification[]
 }
 
 model Workspace {
@@ -65,6 +66,7 @@ model Workspace {
   qcRules           QCRule[]
   auditLogs         AuditLog[]
   notificationChannels NotificationChannel[]
+  notifications     Notification[]
   apiKeys           WorkspaceApiKey[]
 }
 
@@ -462,6 +464,27 @@ model NotificationChannel {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Notificaciones in-app individuales.
+model Notification {
+  id          String    @id @default(uuid())
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String    // "piece_in_review" | "token_expiring" | "publish_failed" | "rate_limit" | "boost_completed" | "info"
+  severity    String    @default("info") // info | warning | error
+  title       String
+  body        String?
+  entityType  String?   // ContentPiece | SocialAccount | PlatformVariant | ...
+  entityId    String?
+  url         String?   // ruta interna a la que llevar al click
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([workspaceId, createdAt])
 }
 
 model WorkspaceApiKey {
