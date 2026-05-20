@@ -57,9 +57,46 @@ export const http = {
     patch(`/api/v1/workspaces/${slug}`, body),
 
   getBrain: (slug: string) => get(`/api/v1/w/${slug}/brain`),
+  updateBrain: (slug: string, body: Record<string, unknown>) =>
+    patch(`/api/v1/w/${slug}/brain`, body),
   getPersonas: (slug: string) => get(`/api/v1/w/${slug}/brain/personas`),
+  createPersona: (slug: string, body: Record<string, unknown>) =>
+    post(`/api/v1/w/${slug}/brain/personas`, body),
+  updatePersona: (slug: string, id: string, body: Record<string, unknown>) =>
+    patch(`/api/v1/w/${slug}/brain/personas/${id}`, body),
+  deletePersona: (slug: string, id: string) =>
+    fetch(`${BASE}/api/v1/w/${slug}/brain/personas/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
   getHooks: (slug: string) => get(`/api/v1/w/${slug}/brain/hooks`),
-  getAssets: (slug: string) => get(`/api/v1/w/${slug}/brain/assets`),
+  getAssets: (slug: string, section?: string) =>
+    get(`/api/v1/w/${slug}/brain/assets${section ? `?section=${section}` : ""}`),
+
+  uploadAsset: async (slug: string, file: File, section: string, name?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("section", section);
+    if (name) form.append("name", name);
+    const res = await fetch(`${BASE}/api/v1/w/${slug}/uploads`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+    if (!res.ok) throw new HttpError(res.status, await safeText(res));
+    return res.json();
+  },
+
+  createWorkspace: (body: {
+    slug: string;
+    name: string;
+    type: string;
+    description?: string;
+    brandColorPrimary?: string;
+    brandColorSecondary?: string;
+  }) => post("/api/v1/workspaces", body),
 
   getPieces: (slug: string, status?: string) =>
     get(`/api/v1/w/${slug}/content/pieces${status ? `?status=${status}` : ""}`),

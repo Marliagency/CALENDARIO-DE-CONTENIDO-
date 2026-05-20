@@ -1,7 +1,10 @@
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { sync } from "@/lib/api/client";
+import { http } from "@/lib/api/http";
+import { useAutosave } from "@/lib/use-autosave";
+import { AutosaveIndicator } from "@/components/ui/AutosaveIndicator";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { cn, formatNumber } from "@/lib/utils";
@@ -91,69 +94,224 @@ export function BrandBrainPage() {
   );
 }
 
-function ProductoTab({ brainId, workspaceId }: { brainId: string; workspaceId: string }) {
-  const brain = sync.brain(workspaceId);
-  if (!brain) return null;
+function ProductoTab({ brainId: _bid, workspaceId }: { brainId: string; workspaceId: string }) {
+  const initialBrain = sync.brain(workspaceId);
+  const ws = sync.workspaces().find((w) => w.id === workspaceId);
+  const slug = ws?.slug ?? "";
+
+  // Estado editable local — se sincroniza al servidor con autoguardado.
+  const [draft, setDraft] = useState({
+    productDescription: initialBrain?.productDescription ?? "",
+    taglineMain: initialBrain?.taglineMain ?? "",
+    taglinesAlt: initialBrain?.taglinesAlt ?? [],
+    uniqueValueProp: initialBrain?.uniqueValueProp ?? "",
+    problemSolved: initialBrain?.problemSolved ?? "",
+    whatWeAreNot: initialBrain?.whatWeAreNot ?? [],
+    competitors: initialBrain?.competitors ?? [],
+    techStackNotes: initialBrain?.techStackNotes ?? "",
+    pricingNotes: initialBrain?.pricingNotes ?? "",
+    monetizationNotes: initialBrain?.monetizationNotes ?? "",
+  });
+
+  const { status } = useAutosave(draft, async (value) => {
+    if (!slug) return;
+    await http.updateBrain(slug, value);
+  });
+
+  if (!initialBrain) return null;
+
+  function update<K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) {
+    setDraft((d) => ({ ...d, [key]: value }));
+  }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Block title="Descripción del producto" full>
-        <p className="text-sm leading-relaxed">{brain.productDescription}</p>
-      </Block>
-      <Block title="Tagline principal">
-        <div className="rounded-md bg-hover px-4 py-3 text-lg font-semibold">
-          {brain.taglineMain}
-        </div>
-        {brain.taglinesAlt.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {brain.taglinesAlt.map((t) => (
-              <span key={t} className="pill bg-hover text-ink">
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-      </Block>
-      <Block title="UVP — Unique Value Prop">
-        <p className="text-sm font-medium">{brain.uniqueValueProp}</p>
-      </Block>
-      <Block title="Problema que resolvemos">
-        <p className="text-sm leading-relaxed">{brain.problemSolved}</p>
-      </Block>
-      <Block title="Lo que NO somos">
-        <ul className="space-y-1">
-          {brain.whatWeAreNot.map((w) => (
-            <li key={w} className="flex items-center gap-2 text-sm">
-              <span className="text-red-400">✕</span> {w}
-            </li>
-          ))}
-        </ul>
-      </Block>
-      <Block title="Competidores" full>
-        <table className="w-full text-sm">
-          <tbody>
-            {brain.competitors.map((c) => (
-              <tr key={c.name} className="border-b border-border/60 last:border-0">
-                <td className="py-2 font-medium">{c.name}</td>
-                <td className="py-2 text-ink-muted">{c.differentiator}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Block>
-      {brain.techStackNotes && (
+    <>
+      <div className="mb-3 flex justify-end">
+        <AutosaveIndicator status={status} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Block title="Descripción del producto" full>
+          <textarea
+            className="input min-h-[110px] resize-y"
+            value={draft.productDescription}
+            onChange={(e) => update("productDescription", e.target.value)}
+          />
+        </Block>
+        <Block title="Tagline principal">
+          <input
+            className="input text-lg font-semibold"
+            value={draft.taglineMain}
+            onChange={(e) => update("taglineMain", e.target.value)}
+          />
+          <ChipsField
+            label="Alternativos"
+            values={draft.taglinesAlt}
+            onChange={(v) => update("taglinesAlt", v)}
+          />
+        </Block>
+        <Block title="UVP — Unique Value Prop">
+          <textarea
+            className="input min-h-[80px]"
+            value={draft.uniqueValueProp}
+            onChange={(e) => update("uniqueValueProp", e.target.value)}
+          />
+        </Block>
+        <Block title="Problema que resolvemos">
+          <textarea
+            className="input min-h-[80px]"
+            value={draft.problemSolved}
+            onChange={(e) => update("problemSolved", e.target.value)}
+          />
+        </Block>
+        <Block title="Lo que NO somos">
+          <ChipsField
+            values={draft.whatWeAreNot}
+            placeholder="Añadir...  (Enter)"
+            onChange={(v) => update("whatWeAreNot", v)}
+            negative
+          />
+        </Block>
+        <Block title="Competidores" full>
+          <CompetitorsEditor
+            value={draft.competitors}
+            onChange={(v) => update("competitors", v)}
+          />
+        </Block>
         <Block title="Notas técnicas">
-          <p className="text-sm">{brain.techStackNotes}</p>
+          <textarea
+            className="input min-h-[60px]"
+            value={draft.techStackNotes}
+            onChange={(e) => update("techStackNotes", e.target.value)}
+          />
         </Block>
-      )}
-      {brain.pricingNotes && (
         <Block title="Pricing / Monetización">
-          <p className="text-sm">{brain.pricingNotes}</p>
-          {brain.monetizationNotes && (
-            <p className="mt-1 text-sm text-ink-muted">{brain.monetizationNotes}</p>
-          )}
+          <textarea
+            className="input min-h-[60px]"
+            placeholder="Pricing..."
+            value={draft.pricingNotes}
+            onChange={(e) => update("pricingNotes", e.target.value)}
+          />
+          <textarea
+            className="input mt-2 min-h-[60px]"
+            placeholder="Monetización..."
+            value={draft.monetizationNotes}
+            onChange={(e) => update("monetizationNotes", e.target.value)}
+          />
         </Block>
-      )}
+      </div>
+    </>
+  );
+}
+
+function ChipsField({
+  values,
+  label,
+  placeholder,
+  onChange,
+  negative,
+}: {
+  values: string[];
+  label?: string;
+  placeholder?: string;
+  onChange: (v: string[]) => void;
+  negative?: boolean;
+}) {
+  const [input, setInput] = useState("");
+  function add() {
+    const t = input.trim();
+    if (!t) return;
+    onChange([...values, t]);
+    setInput("");
+  }
+  return (
+    <div>
+      {label && <div className="label mb-1.5">{label}</div>}
+      <div className="flex flex-wrap gap-1.5">
+        {values.map((v, i) => (
+          <span
+            key={`${v}-${i}`}
+            className={cn(
+              "pill flex items-center gap-1",
+              negative ? "bg-red-500/10 text-red-300" : "bg-hover text-ink",
+            )}
+          >
+            {negative && <span className="text-red-400">✕</span>}
+            {v}
+            <button
+              type="button"
+              className="ml-1 opacity-50 hover:opacity-100"
+              onClick={() => onChange(values.filter((_, j) => j !== i))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <input
+        className="input mt-2"
+        placeholder={placeholder ?? "Añadir…"}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        onBlur={add}
+      />
+    </div>
+  );
+}
+
+function CompetitorsEditor({
+  value,
+  onChange,
+}: {
+  value: { name: string; differentiator: string }[];
+  onChange: (v: { name: string; differentiator: string }[]) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {value.map((c, i) => (
+        <div key={i} className="grid grid-cols-[1fr_2fr_auto] gap-2">
+          <input
+            className="input"
+            placeholder="Competidor"
+            value={c.name}
+            onChange={(e) => {
+              const next = [...value];
+              next[i] = { ...c, name: e.target.value };
+              onChange(next);
+            }}
+          />
+          <input
+            className="input"
+            placeholder="Diferenciador"
+            value={c.differentiator}
+            onChange={(e) => {
+              const next = [...value];
+              next[i] = { ...c, differentiator: e.target.value };
+              onChange(next);
+            }}
+          />
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => onChange(value.filter((_, j) => j !== i))}
+            aria-label="Eliminar"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn-secondary text-xs"
+        onClick={() => onChange([...value, { name: "", differentiator: "" }])}
+      >
+        <Plus className="size-3" /> Añadir competidor
+      </button>
     </div>
   );
 }
@@ -369,7 +527,9 @@ function MensajesTab({ workspaceId }: { workspaceId: string }) {
 }
 
 function ReferenciasTab({ workspaceId }: { workspaceId: string }) {
+  const ws = sync.workspaces().find((w) => w.id === workspaceId);
   const allAssets = sync.assets(workspaceId);
+  const [, refresh] = useState(0);
 
   const sections: { id: string; label: string }[] = [
     { id: "logo", label: "Logos y assets de marca" },
@@ -384,47 +544,120 @@ function ReferenciasTab({ workspaceId }: { workspaceId: string }) {
     <div className="space-y-4">
       {sections.map((s) => {
         const assets = allAssets.filter((a) => a.section === s.id);
-        if (assets.length === 0) return null;
         return (
           <Block title={s.label} full key={s.id}>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {assets.map((a) => (
-                <div key={a.id} className="rounded-md border border-border p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="truncate font-medium">{a.name}</div>
-                    {a.fileSizeBytes != null && (
-                      <span className="text-[11px] text-ink-muted">
-                        {formatNumber(Math.round(a.fileSizeBytes / 1024))} KB
-                      </span>
+            <UploadZone
+              workspaceSlug={ws?.slug ?? ""}
+              section={s.id}
+              onUploaded={() => refresh((n) => n + 1)}
+            />
+            {assets.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-muted">
+                Aún no hay assets en esta sección.
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {assets.map((a) => (
+                  <div key={a.id} className="rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="truncate font-medium">{a.name}</div>
+                      {a.fileSizeBytes != null && (
+                        <span className="text-[11px] text-ink-muted">
+                          {formatNumber(Math.round(a.fileSizeBytes / 1024))} KB
+                        </span>
+                      )}
+                    </div>
+                    {a.description && (
+                      <p className="mt-1 text-xs text-ink-muted line-clamp-2">
+                        {a.description}
+                      </p>
+                    )}
+                    {typeof a.metadata?.summary === "string" && (
+                      <div className="mt-2 rounded-md bg-hover p-2 text-[11px] text-ink-muted">
+                        <strong className="text-ink">Resumen IA:</strong>{" "}
+                        {String(a.metadata.summary)}
+                      </div>
+                    )}
+                    {a.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {a.tags.map((t) => (
+                          <span key={t} className="pill bg-hover text-ink-muted">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {a.description && (
-                    <p className="mt-1 text-xs text-ink-muted line-clamp-2">
-                      {a.description}
-                    </p>
-                  )}
-                  {typeof a.metadata?.summary === "string" && (
-                    <div className="mt-2 rounded-md bg-hover p-2 text-[11px] text-ink-muted">
-                      <strong className="text-ink">Resumen IA:</strong>{" "}
-                      {String(a.metadata.summary)}
-                    </div>
-                  )}
-                  {a.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {a.tags.map((t) => (
-                        <span key={t} className="pill bg-hover text-ink-muted">
-                          #{t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Block>
         );
       })}
     </div>
+  );
+}
+
+function UploadZone({
+  workspaceSlug,
+  section,
+  onUploaded,
+}: {
+  workspaceSlug: string;
+  section: string;
+  onUploaded: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        await http.uploadAsset(workspaceSlug, file, section, file.name);
+      }
+      onUploaded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-5 text-sm transition-colors",
+        hover ? "border-ws bg-ws/5 text-ink" : "border-border text-ink-muted hover:bg-hover",
+      )}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setHover(true);
+      }}
+      onDragLeave={() => setHover(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setHover(false);
+        handleFiles(e.dataTransfer.files);
+      }}
+    >
+      <Upload className="size-4" />
+      <span>
+        {uploading
+          ? "Subiendo…"
+          : "Arrastra archivos aquí o haz click para seleccionar"}
+      </span>
+      <input
+        type="file"
+        multiple
+        className="sr-only"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      {error && <span className="mt-1 text-xs text-red-400">{error}</span>}
+    </label>
   );
 }
 
