@@ -85,10 +85,6 @@ export function SettingsConnectionsPage() {
   );
 
   async function disconnect(acc: SocialAccount) {
-    if (mockMode) {
-      setError("En modo mock no se pueden desconectar cuentas.");
-      return;
-    }
     if (!slug) return;
     if (
       !confirm(
@@ -96,6 +92,12 @@ export function SettingsConnectionsPage() {
       )
     )
       return;
+    if (mockMode) {
+      setError(
+        "Estas en modo mock (VITE_MOCK_API=1). Para conectar y desconectar cuentas reales necesitas arrancar la API: ejecuta 'pnpm dev' en vez de 'pnpm dev:web' y pon VITE_MOCK_API=0 en apps/web/.env.local.",
+      );
+      return;
+    }
     setBusy(acc.id);
     setError(null);
     try {
@@ -110,22 +112,21 @@ export function SettingsConnectionsPage() {
   }
 
   async function connect(platform: Platform) {
-    if (mockMode) {
-      setError(
-        "En modo mock no se pueden conectar cuentas reales. Arranca la API con pnpm dev:api y pon VITE_MOCK_API=0.",
-      );
-      return;
-    }
     setError(null);
-    try {
-      const res = await http.oauthStart(platform, slug ?? "");
-      if (res.configured && res.url) {
-        window.open(res.url, "oauth", "width=560,height=720");
-        return;
+    // Si mockMode=false intentamos OAuth real primero; si la API no responde
+    // o no tiene credenciales configuradas, caemos al modal.
+    if (!mockMode) {
+      try {
+        const res = await http.oauthStart(platform, slug ?? "");
+        if (res.configured && res.url) {
+          window.open(res.url, "oauth", "width=560,height=720");
+          return;
+        }
+      } catch {
+        /* API no disponible — abrimos el modal igualmente */
       }
-    } catch {
-      /* caemos al modal manual */
     }
+    // Siempre abrimos el modal (con aviso si es mock mode).
     const defaultMode: ModalMode = REAL_PUBLISH_READY.includes(platform)
       ? "real-token"
       : "dev-connect";
@@ -144,6 +145,24 @@ export function SettingsConnectionsPage() {
 
   return (
     <div className="space-y-6">
+      {mockMode && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
+          <p className="font-semibold text-amber-300">Estas en modo mock — la API no esta arrancada</p>
+          <p className="mt-1 text-xs text-amber-200/80">
+            Las cuentas que ves son datos de ejemplo. Para conectar tus redes sociales reales:
+          </p>
+          <ol className="mt-2 space-y-0.5 text-xs text-amber-200/80">
+            <li>1. Asegurate de tener <code className="rounded bg-amber-500/20 px-1">.env.local</code> en la raiz del proyecto (copia de <code className="rounded bg-amber-500/20 px-1">.env.local.example</code>)</li>
+            <li>2. Ejecuta <code className="rounded bg-amber-500/20 px-1">pnpm migrate</code> y <code className="rounded bg-amber-500/20 px-1">pnpm db:seed</code> una sola vez</li>
+            <li>3. Cambia <code className="rounded bg-amber-500/20 px-1">VITE_MOCK_API=1</code> a <code className="rounded bg-amber-500/20 px-1">VITE_MOCK_API=0</code> en <code className="rounded bg-amber-500/20 px-1">apps/web/.env.local</code></li>
+            <li>4. Ejecuta <code className="rounded bg-amber-500/20 px-1">pnpm dev</code> (arranca API + frontend juntos)</li>
+          </ol>
+          <p className="mt-2 text-xs text-amber-200/60">
+            Puedes abrir el formulario de conexion para ver las instrucciones de cada red, pero no podras guardar hasta completar los pasos anteriores.
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
           {error}
@@ -155,11 +174,6 @@ export function SettingsConnectionsPage() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
             Cuentas conectadas
           </h3>
-          {mockMode && (
-            <span className="text-[11px] text-ink-muted">
-              Modo mock — conexion real requiere VITE_MOCK_API=0
-            </span>
-          )}
         </div>
         {accounts.length === 0 ? (
           <p className="card px-4 py-6 text-sm text-ink-muted">
@@ -453,6 +467,7 @@ function ConnectModal({
   }
 
   const canSubmit =
+    !mockMode &&
     nickname.trim().length > 0 &&
     handle.trim().length > 0 &&
     formats.length > 0 &&
@@ -476,6 +491,21 @@ function ConnectModal({
             <X className="size-4" />
           </button>
         </div>
+
+        {mockMode && (
+          <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-300">
+            <p className="font-semibold">La API no esta arrancada (modo mock)</p>
+            <p className="mt-1 text-amber-200/70">
+              Puedes leer las instrucciones de conexion aqui, pero para guardar la cuenta necesitas:
+            </p>
+            <ol className="mt-1 space-y-0.5 text-amber-200/70">
+              <li>1. Tener <code>.env.local</code> en la raiz del proyecto</li>
+              <li>2. Ejecutar <code>pnpm migrate</code> y <code>pnpm db:seed</code></li>
+              <li>3. Poner <code>VITE_MOCK_API=0</code> en <code>apps/web/.env.local</code></li>
+              <li>4. Ejecutar <code>pnpm dev</code> (no <code>pnpm dev:web</code>)</li>
+            </ol>
+          </div>
+        )}
 
         {REAL_PUBLISH_READY.includes(platform) && (
           <div className="mb-4 flex rounded-lg bg-hover p-1 text-xs">
