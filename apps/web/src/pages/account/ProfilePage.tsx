@@ -54,7 +54,6 @@ export function ProfilePage() {
     }
 
     try {
-      // TODO: PATCH /api/v1/auth/me may not exist yet — add to backend when ready.
       await http.updateProfile({
         name: name.trim() || undefined,
         email: email.trim() || undefined,

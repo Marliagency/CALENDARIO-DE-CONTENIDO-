@@ -126,4 +126,41 @@ export async function authRoutes(app: FastifyInstance) {
       })),
     };
   });
+
+  // ---------- PATCH /me ----------
+  const updateMeSchema = z.object({
+    name: z.string().min(1).max(120).optional(),
+    email: z.string().email().optional(),
+    avatarUrl: z.string().url().nullable().optional(),
+  });
+
+  app.patch("/me", { preHandler: requireAuth }, async (req, reply) => {
+    const parsed = updateMeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "invalid_body", details: parsed.error.flatten() });
+    }
+    const data = parsed.data;
+    if (data.email) {
+      const existing = await prisma.user.findFirst({
+        where: { email: data.email, NOT: { id: req.user!.id } },
+      });
+      if (existing) {
+        return reply.status(409).send({ error: "email_taken" });
+      }
+    }
+    const updated = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.email !== undefined ? { email: data.email } : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+      },
+    });
+    return {
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+      avatarUrl: updated.avatarUrl,
+    };
+  });
 }

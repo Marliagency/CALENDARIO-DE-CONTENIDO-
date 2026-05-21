@@ -17,12 +17,34 @@ const ALL_EVENTS = [
   "Pieza alcanza top engagement",
 ];
 
+const STORAGE_KEY = "pulse.notification-prefs";
+
+type StoredPrefs = {
+  channels: Record<string, boolean>;
+  events: Record<string, boolean>;
+};
+
+function loadPrefs(): StoredPrefs | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as StoredPrefs;
+  } catch {
+    return null;
+  }
+}
+
 export function SettingsNotificationsPage() {
+  const stored = typeof window !== "undefined" ? loadPrefs() : null;
+
   const [channels, setChannels] = useState(
-    INITIAL_CHANNELS.map((c) => ({ ...c })),
+    INITIAL_CHANNELS.map((c) => ({
+      ...c,
+      active: stored?.channels?.[c.kind] ?? c.active,
+    })),
   );
   const [events, setEvents] = useState<Record<string, boolean>>(
-    Object.fromEntries(ALL_EVENTS.map((e) => [e, true])),
+    Object.fromEntries(ALL_EVENTS.map((e) => [e, stored?.events?.[e] ?? true])),
   );
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,11 +68,17 @@ export function SettingsNotificationsPage() {
 
   async function handleSave() {
     setSaving(true);
-    // No backend model for notification preferences yet.
-    // TODO: implement PATCH /api/v1/auth/notification-prefs when schema exists.
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    setSaved(true);
+    try {
+      const prefs: StoredPrefs = {
+        channels: Object.fromEntries(channels.map((c) => [c.kind, c.active])),
+        events,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      await new Promise((r) => setTimeout(r, 200));
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
