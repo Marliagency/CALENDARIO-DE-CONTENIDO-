@@ -339,6 +339,7 @@ model PublishJob {
   maxAttempts       Int      @default(3)
   lastError         String?
   containerId       String?
+  uploadPostId      String?
   idempotencyKey    String?  @unique
   scheduledAt       DateTime?
   executedAt        DateTime?
@@ -346,6 +347,7 @@ model PublishJob {
   updatedAt         DateTime @updatedAt
 
   @@index([status, scheduledAt])
+  @@index([uploadPostId])
 }
 
 model AdCampaign {

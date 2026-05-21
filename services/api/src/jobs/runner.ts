@@ -1,6 +1,7 @@
 import { enqueueJob, tick } from "../lib/jobs.js";
 import { publishHandler } from "./publish-handler.js";
 import { publishScheduler } from "./scheduler.js";
+import { pollUploadStatuses } from "./upload-status-poller.js";
 import {
   notifyExpiringTokens,
   scheduleTokenRefreshes,
@@ -41,6 +42,7 @@ export function startJobRunner(opts?: {
   schedulerInterval?: number;
   tokenRefreshInterval?: number;
   metricsPullInterval?: number;
+  uploadPollInterval?: number;
 }) {
   if (started) return;
   started = true;
@@ -48,6 +50,7 @@ export function startJobRunner(opts?: {
   const schedulerInterval = opts?.schedulerInterval ?? 60_000;
   const tokenRefreshInterval = opts?.tokenRefreshInterval ?? 60 * 60 * 1000;
   const metricsPullInterval = opts?.metricsPullInterval ?? 24 * 60 * 60 * 1000;
+  const uploadPollInterval = opts?.uploadPollInterval ?? 2 * 60 * 1000;
 
   let processing = false;
   setInterval(async () => {
@@ -104,7 +107,16 @@ export function startJobRunner(opts?: {
     }
   }, metricsPullInterval);
 
+  // Upload-Post status poller — verifica jobs en proceso
+  setInterval(async () => {
+    try {
+      await pollUploadStatuses();
+    } catch (err) {
+      console.error("[upload-status-poller] error", err);
+    }
+  }, uploadPollInterval);
+
   console.log(
-    `[jobs] runner started (poll ${interval}ms, publish ${schedulerInterval}ms, refresh ${tokenRefreshInterval}ms, metrics ${metricsPullInterval}ms)`,
+    `[jobs] runner started (poll ${interval}ms, publish ${schedulerInterval}ms, refresh ${tokenRefreshInterval}ms, metrics ${metricsPullInterval}ms, upload-poll ${uploadPollInterval}ms)`,
   );
 }
