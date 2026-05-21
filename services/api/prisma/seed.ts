@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 
 const QYRO_ID = "ws-qyro";
 const PERSONAL_ID = "ws-personal";
+const MARLI_ID = "ws-marli-agency";
 const USER_ID = "user-diego";
 
 async function main() {
@@ -64,6 +65,38 @@ async function main() {
         create: { userId: user.id, role: "owner", acceptedAt: new Date() },
       },
     },
+  });
+
+  // ----- Workspace: Marli Agency -----
+  // Brand Brain vacio a proposito — el usuario lo completa desde la UI
+  // (/w/marli-agency/brain) con la info de la agencia.
+  const marli = await prisma.workspace.upsert({
+    where: { slug: "marli-agency" },
+    update: {},
+    create: {
+      id: MARLI_ID,
+      slug: "marli-agency",
+      name: "Marli Agency",
+      type: "client",
+      description:
+        "Agencia. Brand Brain pendiente de rellenar desde /w/marli-agency/brain.",
+      brandColorPrimary: "#E11D48",
+      brandColorSecondary: "#FB7185",
+      defaultTimezone: "Europe/Madrid",
+      defaultLanguage: "es-ES",
+      createdById: user.id,
+      sortOrder: 2,
+      members: {
+        create: { userId: user.id, role: "owner", acceptedAt: new Date() },
+      },
+    },
+  });
+
+  // Brand Brain vacio (creado para que la UI no rompa al entrar)
+  await prisma.brandBrain.upsert({
+    where: { workspaceId: marli.id },
+    update: {},
+    create: { workspaceId: marli.id },
   });
 
   // ----- Brand Brain QYRO -----
@@ -429,7 +462,7 @@ async function main() {
 
   console.log(`Seeded:
   - 1 user (${user.email}) — password: pulse-demo-2026
-  - 2 workspaces (qyro, personal)
+  - 3 workspaces (qyro, personal, marli-agency)
   - 2 buyer personas
   - 6 social accounts (multi-cuenta por plataforma)
   - 1 campaign
