@@ -1,44 +1,33 @@
 import type { PlatformAdapter } from "./types.js";
-import { metaAdapter } from "./meta.js";
-import { tiktokAdapter } from "./tiktok.js";
-import { youtubeAdapter } from "./youtube.js";
-import { linkedinAdapter } from "./linkedin.js";
-import { twitterAdapter } from "./twitter.js";
 import { simulateAdapter } from "./simulate.js";
 
-const REAL_REGISTRY: Record<string, PlatformAdapter | undefined> = {
-  instagram: metaAdapter,
-  facebook: metaAdapter,
-  tiktok: tiktokAdapter,
-  youtube: youtubeAdapter,
-  linkedin: linkedinAdapter,
-  twitter_x: twitterAdapter,
-};
-
 /**
- * Devuelve el adapter para una plataforma.
+ * Desde la migracion a Upload-Post (servicios/api/src/adapters/upload-post.ts),
+ * Pulse ya no usa adapters propios contra Meta/TikTok/YouTube/LinkedIn/X.
+ * Toda la publicacion real va por upload-post.ts desde publish-handler.ts.
  *
- * Si `PULSE_SIMULATE_PUBLISH=1`, se usa el adapter de simulacion para
- * todas las plataformas — util para probar el ciclo end-to-end sin
- * credenciales OAuth reales.
+ * Mantenemos `simulateAdapter` para PULSE_SIMULATE_PUBLISH=1, util para
+ * probar el ciclo end-to-end sin red.
+ *
+ * Los ficheros meta.ts, tiktok.ts, youtube.ts, linkedin.ts, twitter.ts
+ * permanecen en disco pero no estan registrados aqui. Se eliminaran una
+ * vez verificada la nueva ruta en produccion.
  */
+
+const REAL_REGISTRY: Record<string, PlatformAdapter | undefined> = {};
+
 export function adapterFor(platform: string): PlatformAdapter {
   if (process.env.PULSE_SIMULATE_PUBLISH === "1") {
     return simulateAdapter;
   }
   const adapter = REAL_REGISTRY[platform];
   if (!adapter) {
-    throw new Error(`No adapter for platform "${platform}"`);
+    throw new Error(
+      `No hay adapter directo para "${platform}". La publicacion debe ir por Upload-Post (services/api/src/adapters/upload-post.ts).`,
+    );
   }
   return adapter;
 }
 
-export {
-  metaAdapter,
-  tiktokAdapter,
-  youtubeAdapter,
-  linkedinAdapter,
-  twitterAdapter,
-  simulateAdapter,
-};
+export { simulateAdapter };
 export type { PlatformAdapter } from "./types.js";

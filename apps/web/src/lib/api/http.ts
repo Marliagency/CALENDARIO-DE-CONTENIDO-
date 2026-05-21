@@ -184,14 +184,8 @@ export const http = {
       if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
     }),
 
-  // OAuth / connection
-  oauthStart: (
-    platform: string,
-    workspaceSlug: string,
-  ) =>
-    get<{ configured: boolean; url?: string; state?: string; message?: string }>(
-      `/api/v1/oauth/${platform}/start?workspace=${workspaceSlug}`,
-    ),
+  // Conexiones (Upload-Post se usa para publicacion real;
+  // dev-connect sigue disponible para crear SocialAccount de prueba).
   devConnect: (body: {
     workspaceSlug: string;
     platform: string;
