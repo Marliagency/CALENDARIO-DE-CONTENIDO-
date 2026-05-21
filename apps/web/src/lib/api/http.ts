@@ -208,6 +208,81 @@ export const http = {
   getAudit: (slug: string, limit = 100) =>
     get(`/api/v1/w/${slug}/audit?limit=${limit}`),
 
+  createPiece: (
+    slug: string,
+    body: {
+      title: string;
+      format: string;
+      targetAccounts?: string[];
+      buyerPersonaId?: string;
+      campaignId?: string;
+      notes?: string;
+      status?: "draft" | "in_review";
+    },
+  ) => post<import("@pulse/types").ContentPiece>(`/api/v1/w/${slug}/content/pieces`, body),
+
+  updatePiece: (slug: string, id: string, body: Record<string, unknown>) =>
+    patch(`/api/v1/w/${slug}/content/pieces/${id}`, body),
+
+  deletePiece: (slug: string, id: string) =>
+    fetch(`${BASE}/api/v1/w/${slug}/content/pieces/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
+
+  createVariant: (
+    slug: string,
+    pieceId: string,
+    body: {
+      socialAccountId: string;
+      platform: string;
+      caption?: string;
+      hashtags?: string[];
+      mediaUrl?: string;
+      scheduledAt?: string;
+    },
+  ) => post(`/api/v1/w/${slug}/content/pieces/${pieceId}/variants`, body),
+
+  createCampaign: (
+    slug: string,
+    body: {
+      name: string;
+      objective?: string;
+      startAt?: string;
+      endAt?: string;
+      kpiName?: string;
+      kpiTarget?: number;
+      notes?: string;
+    },
+  ) => post<unknown>(`/api/v1/w/${slug}/campaigns`, body),
+
+  deleteCampaign: (slug: string, id: string) =>
+    fetch(`${BASE}/api/v1/w/${slug}/campaigns/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
+
+  updateProfile: (body: { name?: string; email?: string }) =>
+    patch<{ id: string; name?: string; email: string }>("/api/v1/auth/me", body),
+
+  getQcRules: (slug: string) =>
+    get<import("@pulse/types").QcRule[]>(`/api/v1/w/${slug}/brain/qc-rules`),
+  createQcRule: (slug: string, body: Record<string, unknown>) =>
+    post<import("@pulse/types").QcRule>(`/api/v1/w/${slug}/brain/qc-rules`, body),
+  updateQcRule: (slug: string, ruleId: string, body: Record<string, unknown>) =>
+    patch(`/api/v1/w/${slug}/brain/qc-rules/${ruleId}`, body),
+  deleteQcRule: (slug: string, ruleId: string) =>
+    fetch(`${BASE}/api/v1/w/${slug}/brain/qc-rules/${ruleId}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
+    }),
+
   // Dev-only
   generateDummyMetrics: (slug: string) =>
     post(`/api/v1/w/${slug}/metrics/generate-dummy`, {}),

@@ -245,6 +245,100 @@ export async function brainRoutes(app: FastifyInstance) {
     return reply.status(201).send(hook);
   });
 
+  // ---------- QC Rules ----------
+  app.get<{ Params: { slug: string } }>("/qc-rules", async (req) => {
+    const rules = await prisma.qCRule.findMany({
+      where: { workspaceId: req.workspaceId! },
+      orderBy: { createdAt: "asc" },
+    });
+    return rules.map((r) => ({
+      ...r,
+      appliesToFormats: parseJSON(r.appliesToFormats, []),
+      appliesToPlatforms: parseJSON(r.appliesToPlatforms, []),
+      params: parseJSON(r.params, {}),
+    }));
+  });
+
+  const qcRuleSchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    rule: z.string(),
+    severity: z.enum(["warning", "error"]),
+    enabled: z.boolean().default(true),
+    params: z.record(z.unknown()).optional(),
+    appliesToFormats: z.array(z.string()).default([]),
+    appliesToPlatforms: z.array(z.string()).default([]),
+  });
+
+  app.post<{ Params: { slug: string } }>("/qc-rules", async (req, reply) => {
+    const body = qcRuleSchema.safeParse(req.body);
+    if (!body.success) return reply.status(400).send({ error: body.error.flatten() });
+
+    const rule = await prisma.qCRule.create({
+      data: {
+        workspaceId: req.workspaceId!,
+        name: body.data.name,
+        ruleType: body.data.rule,
+        severity: body.data.severity,
+        active: body.data.enabled,
+        params: stringifyJSON(body.data.params ?? {}),
+        appliesToFormats: stringifyJSON(body.data.appliesToFormats),
+        appliesToPlatforms: stringifyJSON(body.data.appliesToPlatforms),
+      },
+    });
+
+    return reply.status(201).send({
+      ...rule,
+      appliesToFormats: parseJSON(rule.appliesToFormats, []),
+      appliesToPlatforms: parseJSON(rule.appliesToPlatforms, []),
+      params: parseJSON(rule.params, {}),
+    });
+  });
+
+  const qcRulePatchSchema = qcRuleSchema.partial();
+
+  app.patch<{ Params: { slug: string; ruleId: string } }>("/qc-rules/:ruleId", async (req, reply) => {
+    const body = qcRulePatchSchema.safeParse(req.body);
+    if (!body.success) return reply.status(400).send({ error: body.error.flatten() });
+
+    const existing = await prisma.qCRule.findFirst({
+      where: { id: req.params.ruleId, workspaceId: req.workspaceId! },
+    });
+    if (!existing) return reply.status(404).send({ error: "Not found" });
+
+    const update: Record<string, unknown> = {};
+    if (body.data.name !== undefined) update.name = body.data.name;
+    if (body.data.rule !== undefined) update.ruleType = body.data.rule;
+    if (body.data.severity !== undefined) update.severity = body.data.severity;
+    if (body.data.enabled !== undefined) update.active = body.data.enabled;
+    if (body.data.params !== undefined) update.params = stringifyJSON(body.data.params);
+    if (body.data.appliesToFormats !== undefined) update.appliesToFormats = stringifyJSON(body.data.appliesToFormats);
+    if (body.data.appliesToPlatforms !== undefined) update.appliesToPlatforms = stringifyJSON(body.data.appliesToPlatforms);
+
+    const updated = await prisma.qCRule.update({
+      where: { id: existing.id },
+      data: update,
+    });
+
+    return {
+      ...updated,
+      appliesToFormats: parseJSON(updated.appliesToFormats, []),
+      appliesToPlatforms: parseJSON(updated.appliesToPlatforms, []),
+      params: parseJSON(updated.params, {}),
+    };
+  });
+
+  app.delete<{ Params: { slug: string; ruleId: string } }>("/qc-rules/:ruleId", async (req, reply) => {
+    const existing = await prisma.qCRule.findFirst({
+      where: { id: req.params.ruleId, workspaceId: req.workspaceId! },
+    });
+    if (!existing) return reply.status(404).send({ error: "Not found" });
+
+    await prisma.qCRule.delete({ where: { id: existing.id } });
+
+    return reply.status(204).send();
+  });
+
   // ---------- Assets ----------
   app.get<{
     Params: { slug: string };

@@ -219,6 +219,34 @@ export const dataCache = {
     notify();
   },
 
+  addPiece(piece: ContentPiece) {
+    cache.pieces.push(piece);
+    notify();
+  },
+
+  removePiece(id: string) {
+    cache.pieces = cache.pieces.filter((p) => p.id !== id);
+    notify();
+  },
+
+  addCampaign(campaign: Campaign) {
+    cache.campaigns.push(campaign);
+    notify();
+  },
+
+  removeCampaign(id: string) {
+    cache.campaigns = cache.campaigns.filter((c) => c.id !== id);
+    notify();
+  },
+
+  setCampaigns(workspaceId: string, campaigns: Campaign[]) {
+    cache.campaigns = [
+      ...cache.campaigns.filter((c) => c.workspaceId !== workspaceId),
+      ...campaigns,
+    ];
+    notify();
+  },
+
   async refetchAccounts(workspaceSlug: string) {
     const ws = cache.workspaces.find((w) => w.slug === workspaceSlug);
     if (!ws) return;

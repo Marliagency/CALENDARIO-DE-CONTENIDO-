@@ -1,6 +1,6 @@
-import { Check, Edit3, Loader2, X } from "lucide-react";
+import { Check, Edit3, Loader2, Save, X } from "lucide-react";
 import { useState } from "react";
-import type { ContentPiece } from "@pulse/types";
+import type { ContentPiece, PlatformVariant } from "@pulse/types";
 import { sync } from "@/lib/api/client";
 import { http } from "@/lib/api/http";
 import { useApiMutation } from "@/lib/api";
@@ -138,17 +138,8 @@ export function QueueReviewPanel({ piece, workspaceSlug }: QueueReviewPanelProps
             )}
           </Section>
 
-          <Section title="Programación">
-            {variants.map((v) => (
-              <div key={v.id} className="flex items-center justify-between gap-2 text-sm">
-                <AccountChip accountId={v.socialAccountId} />
-                <input
-                  type="datetime-local"
-                  defaultValue={v.scheduledAt?.slice(0, 16) ?? ""}
-                  className="input w-auto"
-                />
-              </div>
-            ))}
+          <Section title="Programacion">
+            <ScheduleSection variants={variants} workspaceSlug={workspaceSlug} />
           </Section>
 
           {current && (
@@ -231,6 +222,71 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex justify-between gap-3">
       <dt className="text-ink-muted">{label}</dt>
       <dd className="text-right">{children}</dd>
+    </div>
+  );
+}
+
+function ScheduleSection({
+  variants,
+  workspaceSlug,
+}: {
+  variants: PlatformVariant[];
+  workspaceSlug: string;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(variants.map((v) => [v.id, v.scheduledAt?.slice(0, 16) ?? ""])),
+  );
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function saveVariant(variantId: string) {
+    const val = values[variantId];
+    if (!val) return;
+    setSaving(variantId);
+    setError(null);
+    try {
+      const iso = new Date(val).toISOString();
+      await http.scheduleVariant(workspaceSlug, variantId, iso);
+      setSaved(variantId);
+      setTimeout(() => setSaved(null), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {error && <div className="text-xs text-red-400">{error}</div>}
+      {variants.map((v) => (
+        <div key={v.id} className="flex items-center gap-2 text-sm">
+          <AccountChip accountId={v.socialAccountId} />
+          <input
+            type="datetime-local"
+            value={values[v.id] ?? ""}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, [v.id]: e.target.value }))
+            }
+            className="input w-auto flex-1"
+          />
+          <button
+            type="button"
+            className="btn-secondary text-xs"
+            onClick={() => saveVariant(v.id)}
+            disabled={saving === v.id || !values[v.id]}
+          >
+            {saving === v.id ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : saved === v.id ? (
+              <Check className="size-3 text-emerald-400" />
+            ) : (
+              <Save className="size-3" />
+            )}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

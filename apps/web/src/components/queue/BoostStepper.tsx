@@ -1,7 +1,9 @@
+import { Check, Loader2, Save } from "lucide-react";
 import { useState } from "react";
 import type { PlatformVariant } from "@pulse/types";
 import { useParams } from "react-router-dom";
 import { sync } from "@/lib/api/client";
+import { http } from "@/lib/api/http";
 import { cn, formatEur } from "@/lib/utils";
 
 const DURATION_OPTIONS = [1, 3, 5, 7, 14];
@@ -23,7 +25,31 @@ export function BoostStepper({ variant }: { variant: PlatformVariant }) {
     variant.boostAudiencePresetId ?? audiences[0]?.id ?? "",
   );
   const [objective, setObjective] = useState(variant.boostObjective ?? "VIDEO_VIEW");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dailyBudget = days > 0 ? budget / days : 0;
+
+  async function save() {
+    if (!slug) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await http.boostVariant(slug, variant.id, {
+        enabled,
+        budgetEur: budget,
+        durationDays: days,
+        objective,
+        audiencePresetId: audienceId || undefined,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -159,6 +185,26 @@ export function BoostStepper({ variant }: { variant: PlatformVariant }) {
           </div>
         </>
       )}
+
+      {error && <div className="text-xs text-red-400">{error}</div>}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="btn-primary text-xs"
+          onClick={save}
+          disabled={saving}
+        >
+          {saving ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : saved ? (
+            <Check className="size-3 text-emerald-400" />
+          ) : (
+            <Save className="size-3" />
+          )}{" "}
+          {saved ? "Guardado" : "Guardar boost"}
+        </button>
+      </div>
     </div>
   );
 }

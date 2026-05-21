@@ -1,6 +1,6 @@
-import { AlertTriangle, Inbox } from "lucide-react";
+import { AlertTriangle, Inbox, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import type { ContentPiece, ContentStatus } from "@pulse/types";
 import { sync } from "@/lib/api/client";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { AccountChip } from "@/components/ui/PlatformBadge";
 import { QueueReviewPanel } from "@/components/queue/QueueReviewPanel";
+import { NewPieceModal } from "@/components/queue/NewPieceModal";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { cn, formatEur, timeAgo } from "@/lib/utils";
 import { formatEmoji, formatLabel } from "@/lib/platform";
@@ -26,6 +27,7 @@ export function QueuePage() {
   const ws = slug ? sync.workspace(slug) : undefined;
   const [tab, setTab] = useState<Tab>("pending");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showNewPiece, setShowNewPiece] = useState(false);
 
   if (!ws) return <NotFoundPage />;
 
@@ -43,33 +45,49 @@ export function QueuePage() {
 
   return (
     <div>
+      {showNewPiece && (
+        <NewPieceModal
+          onClose={() => setShowNewPiece(false)}
+          onCreated={() => setShowNewPiece(false)}
+        />
+      )}
       <PageHeader
         title="Cola"
         description="Bandeja del workspace. Revisa, aprueba, programa y boost por pieza."
         actions={
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-base p-0.5">
-            {TABS.map((t) => {
-              const count = pieces.filter((p) => t.statuses.includes(p.status)).length;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    setTab(t.id);
-                    setSelectedId(null);
-                  }}
-                  className={cn(
-                    "rounded-md px-3 py-1 text-sm font-medium transition-colors",
-                    tab === t.id
-                      ? "bg-surface text-ink shadow-sm"
-                      : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {t.label}
-                  <span className="ml-1.5 text-xs text-ink-muted">{count}</span>
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowNewPiece(true)}
+              className="btn-primary"
+            >
+              <Plus className="size-4" />
+              Nueva pieza
+            </button>
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-base p-0.5">
+              {TABS.map((t) => {
+                const count = pieces.filter((p) => t.statuses.includes(p.status)).length;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setTab(t.id);
+                      setSelectedId(null);
+                    }}
+                    className={cn(
+                      "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+                      tab === t.id
+                        ? "bg-surface text-ink shadow-sm"
+                        : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {t.label}
+                    <span className="ml-1.5 text-xs text-ink-muted">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         }
       />
