@@ -10,6 +10,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  notificationPrefs?: Record<string, unknown>;
   createdAt: ISODate;
 }
 

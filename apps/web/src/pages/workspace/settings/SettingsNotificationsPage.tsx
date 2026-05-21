@@ -1,5 +1,8 @@
 import { Bell, Check, Mail, MessageSquare, Webhook } from "lucide-react";
 import { useEffect, useState } from "react";
+import { mockMode } from "@/lib/api/client";
+import { http } from "@/lib/api/http";
+import { useAuth } from "@/lib/auth";
 
 const INITIAL_CHANNELS = [
   { kind: "email", label: "Email", icon: Mail, target: "diego@qyro.app", active: true },
@@ -24,7 +27,7 @@ type StoredPrefs = {
   events: Record<string, boolean>;
 };
 
-function loadPrefs(): StoredPrefs | null {
+function loadLocalPrefs(): StoredPrefs | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -35,19 +38,26 @@ function loadPrefs(): StoredPrefs | null {
 }
 
 export function SettingsNotificationsPage() {
-  const stored = typeof window !== "undefined" ? loadPrefs() : null;
+  const { user, setUser } = useAuth();
+
+  // Source of truth: en HTTP mode = user.notificationPrefs; en mock = localStorage
+  const initial =
+    !mockMode && user?.notificationPrefs
+      ? (user.notificationPrefs as Partial<StoredPrefs>)
+      : (loadLocalPrefs() ?? {});
 
   const [channels, setChannels] = useState(
     INITIAL_CHANNELS.map((c) => ({
       ...c,
-      active: stored?.channels?.[c.kind] ?? c.active,
+      active: initial?.channels?.[c.kind] ?? c.active,
     })),
   );
   const [events, setEvents] = useState<Record<string, boolean>>(
-    Object.fromEntries(ALL_EVENTS.map((e) => [e, stored?.events?.[e] ?? true])),
+    Object.fromEntries(ALL_EVENTS.map((e) => [e, initial?.events?.[e] ?? true])),
   );
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Hide the "Guardado" badge after 2.5s
   useEffect(() => {
@@ -68,14 +78,24 @@ export function SettingsNotificationsPage() {
 
   async function handleSave() {
     setSaving(true);
+    setError(null);
+    const prefs: StoredPrefs = {
+      channels: Object.fromEntries(channels.map((c) => [c.kind, c.active])),
+      events,
+    };
     try {
-      const prefs: StoredPrefs = {
-        channels: Object.fromEntries(channels.map((c) => [c.kind, c.active])),
-        events,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-      await new Promise((r) => setTimeout(r, 200));
+      if (mockMode) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+        await new Promise((r) => setTimeout(r, 200));
+      } else {
+        const updated = await http.updateProfile({ notificationPrefs: prefs as unknown as Record<string, unknown> });
+        if (user) {
+          setUser({ ...user, notificationPrefs: updated.notificationPrefs ?? prefs });
+        }
+      }
       setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -83,6 +103,11 @@ export function SettingsNotificationsPage() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Canales de notificacion</h3>
         <div className="flex items-center gap-2">

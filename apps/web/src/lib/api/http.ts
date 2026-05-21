@@ -266,8 +266,19 @@ export const http = {
       if (!r.ok && r.status !== 204) throw new HttpError(r.status, "");
     }),
 
-  updateProfile: (body: { name?: string; email?: string }) =>
-    patch<{ id: string; name?: string; email: string }>("/api/v1/auth/me", body),
+  updateProfile: (body: {
+    name?: string;
+    email?: string;
+    avatarUrl?: string | null;
+    notificationPrefs?: Record<string, unknown>;
+  }) =>
+    patch<{
+      id: string;
+      name?: string;
+      email: string;
+      avatarUrl?: string;
+      notificationPrefs?: Record<string, unknown>;
+    }>("/api/v1/auth/me", body),
 
   getQcRules: (slug: string) =>
     get<import("@pulse/types").QcRule[]>(`/api/v1/w/${slug}/brain/qc-rules`),

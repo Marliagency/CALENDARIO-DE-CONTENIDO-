@@ -112,11 +112,18 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
     if (!user) return null;
+    let notificationPrefs: Record<string, unknown> = {};
+    try {
+      notificationPrefs = JSON.parse(user.notificationPrefs || "{}");
+    } catch {
+      notificationPrefs = {};
+    }
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl,
+      notificationPrefs,
       workspaces: user.memberships.map((m) => ({
         role: m.role,
         slug: m.workspace.slug,
@@ -132,6 +139,7 @@ export async function authRoutes(app: FastifyInstance) {
     name: z.string().min(1).max(120).optional(),
     email: z.string().email().optional(),
     avatarUrl: z.string().url().nullable().optional(),
+    notificationPrefs: z.record(z.unknown()).optional(),
   });
 
   app.patch("/me", { preHandler: requireAuth }, async (req, reply) => {
@@ -154,13 +162,23 @@ export async function authRoutes(app: FastifyInstance) {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.email !== undefined ? { email: data.email } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+        ...(data.notificationPrefs !== undefined
+          ? { notificationPrefs: JSON.stringify(data.notificationPrefs) }
+          : {}),
       },
     });
+    let prefs: Record<string, unknown> = {};
+    try {
+      prefs = JSON.parse(updated.notificationPrefs || "{}");
+    } catch {
+      prefs = {};
+    }
     return {
       id: updated.id,
       email: updated.email,
       name: updated.name,
       avatarUrl: updated.avatarUrl,
+      notificationPrefs: prefs,
     };
   });
 }

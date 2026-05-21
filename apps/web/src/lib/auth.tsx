@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   name?: string;
   avatarUrl?: string;
+  notificationPrefs?: Record<string, unknown>;
   workspaces?: { slug: string; name: string; role: string; brandColorPrimary: string }[];
 }
 
@@ -19,6 +20,7 @@ interface AuthState {
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  setUser: (u: AuthUser | null) => void;
 }
 
 const AuthCtx = createContext<AuthState | null>(null);
@@ -117,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh, setUser }}>
       {children}
     </AuthCtx.Provider>
   );
