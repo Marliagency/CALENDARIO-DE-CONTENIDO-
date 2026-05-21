@@ -3,6 +3,7 @@ import { workspacesRoutes } from "./workspaces.js";
 import { brainRoutes } from "./brain.js";
 import { contentRoutes } from "./content.js";
 import { socialRoutes } from "./social.js";
+import { connectionsRoutes } from "./connections.js";
 import { metricsRoutes } from "./metrics.js";
 import { ingestRoutes } from "./ingest.js";
 import { campaignsRoutes } from "./campaigns.js";
@@ -24,6 +25,7 @@ export async function registerRoutes(app: FastifyInstance) {
   await app.register(brainRoutes, { prefix: "/api/v1/w/:slug/brain" });
   await app.register(contentRoutes, { prefix: "/api/v1/w/:slug/content" });
   await app.register(socialRoutes, { prefix: "/api/v1/w/:slug/social" });
+  await app.register(connectionsRoutes, { prefix: "/api/v1/w/:slug/connections" });
   await app.register(metricsRoutes, { prefix: "/api/v1/w/:slug/metrics" });
   await app.register(campaignsRoutes, { prefix: "/api/v1/w/:slug/campaigns" });
   await app.register(audiencesRoutes, { prefix: "/api/v1/w/:slug/audiences" });

@@ -280,6 +280,14 @@ export const http = {
       notificationPrefs?: Record<string, unknown>;
     }>("/api/v1/auth/me", body),
 
+  getConnectionsStatus: (slug: string) =>
+    get<{
+      profile: string;
+      found: boolean;
+      accounts: Array<{ platform: string; handle: string | null; connected: boolean }>;
+      manageUrl: string;
+    }>(`/api/v1/w/${slug}/connections/status`),
+
   getQcRules: (slug: string) =>
     get<import("@pulse/types").QcRule[]>(`/api/v1/w/${slug}/brain/qc-rules`),
   createQcRule: (slug: string, body: Record<string, unknown>) =>
