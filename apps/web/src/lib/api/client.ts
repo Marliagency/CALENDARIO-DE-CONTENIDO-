@@ -25,7 +25,7 @@ import {
 import type { ContentStatus, Workspace } from "@pulse/types";
 import { dataCache } from "./data-cache";
 
-const USE_MOCK = import.meta.env.VITE_MOCK_API !== "0"; // Default to mock mode
+const USE_MOCK = true; // Force mock mode
 export const mockMode = USE_MOCK;
 
 // ---------- Sync API: lee de mock-data en mock mode, de dataCache en HTTP mode ----------
