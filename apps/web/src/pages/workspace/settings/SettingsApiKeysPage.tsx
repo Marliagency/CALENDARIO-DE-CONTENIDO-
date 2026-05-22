@@ -6,7 +6,11 @@ import { sync, mockMode } from "@/lib/api/client";
 import { http } from "@/lib/api/http";
 import { formatDate, timeAgo } from "@/lib/utils";
 
-const ALL_SCOPES = ["read", "ingest", "publish", "analytics"];
+const ALL_SCOPES: { id: string; label: string }[] = [
+  { id: "ingest", label: "ingest — recibir contenido desde el estudio" },
+  { id: "read_brain", label: "read_brain — leer el Brand Brain" },
+  { id: "read_metrics", label: "read_metrics — leer metricas" },
+];
 
 export function SettingsApiKeysPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -159,7 +163,7 @@ function NewApiKeyModal({ workspaceSlug, onClose, onCreated }: {
   onCreated: (key: WorkspaceApiKey, token: string) => void;
 }) {
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<string[]>(["read", "ingest"]);
+  const [scopes, setScopes] = useState<string[]>(["ingest", "read_brain"]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -196,12 +200,20 @@ function NewApiKeyModal({ workspaceSlug, onClose, onCreated }: {
           </div>
           <div className="space-y-1">
             <label className="label">Scopes</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-1.5">
               {ALL_SCOPES.map((s) => (
-                <button key={s} type="button" onClick={() => toggleScope(s)}
-                  className={`rounded-full px-3 py-1 text-xs ${scopes.includes(s) ? "bg-ws text-white" : "bg-hover text-ink-muted"}`}>
-                  {s}
-                </button>
+                <label
+                  key={s.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-hover"
+                >
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(s.id)}
+                    onChange={() => toggleScope(s.id)}
+                    className="size-3.5"
+                  />
+                  <span>{s.label}</span>
+                </label>
               ))}
             </div>
           </div>
