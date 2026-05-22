@@ -11,6 +11,7 @@ studio/renders/
 studio/cache/
 studio/render-requests/
 studio/pending-pushes.jsonl
+studio/studio/
 studio/remotion-projects/*/out/
 studio/remotion-projects/*/node_modules/
 *.log
