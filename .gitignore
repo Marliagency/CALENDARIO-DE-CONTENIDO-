@@ -5,6 +5,13 @@ build
 .env
 .env.local
 .env.*.local
+.env.studio
+studio/logs/
+studio/renders/
+studio/cache/
+studio/pending-pushes.jsonl
+studio/remotion-projects/*/out/
+studio/remotion-projects/*/node_modules/
 *.log
 .turbo
 .cache

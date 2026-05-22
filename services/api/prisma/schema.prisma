@@ -111,6 +111,9 @@ model BrandBrain {
   claimsAllowed        String   @default("[]")
   claimsForbidden      String   @default("[]")
   disclaimersRequired  String   @default("[]")
+  // Content profile for the creative studio (Session 2). JSON: { primary_formats[],
+  // avoid_formats[], free_first, posting_frequency, content_split{} }
+  contentProfile       String   @default("{}")
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }

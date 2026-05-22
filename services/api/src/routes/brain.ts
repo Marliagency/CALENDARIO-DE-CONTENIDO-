@@ -16,6 +16,7 @@ function serializeBrain(brain: {
   claimsAllowed: string;
   claimsForbidden: string;
   disclaimersRequired: string;
+  contentProfile: string;
 }) {
   return {
     ...brain,
@@ -29,6 +30,7 @@ function serializeBrain(brain: {
     claimsAllowed: parseJSON(brain.claimsAllowed, []),
     claimsForbidden: parseJSON(brain.claimsForbidden, []),
     disclaimersRequired: parseJSON(brain.disclaimersRequired, []),
+    contentProfile: parseJSON(brain.contentProfile, {}),
   };
 }
 
@@ -90,6 +92,15 @@ export async function brainRoutes(app: FastifyInstance) {
     claimsAllowed: z.array(z.string()).optional(),
     claimsForbidden: z.array(z.string()).optional(),
     disclaimersRequired: z.array(z.string()).optional(),
+    contentProfile: z
+      .object({
+        primary_formats: z.array(z.string()).optional(),
+        avoid_formats: z.array(z.string()).optional(),
+        free_first: z.boolean().optional(),
+        posting_frequency: z.number().int().nonnegative().optional(),
+        content_split: z.record(z.number()).optional(),
+      })
+      .optional(),
   });
 
   app.patch<{ Params: { slug: string } }>("/", async (req, reply) => {

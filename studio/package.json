@@ -1,0 +1,27 @@
+{
+  "name": "@pulse/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Creative studio (Session 2) — generates content and pushes it to Pulse for review.",
+  "main": "src/index.ts",
+  "bin": {
+    "pulse-studio": "src/cli.ts"
+  },
+  "scripts": {
+    "dev": "dotenv -e ../.env.studio -- tsx src/cli.ts",
+    "studio": "dotenv -e ../.env.studio -- tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/router.test.ts test/qc.test.ts test/brief.test.ts test/spend.test.ts"
+  },
+  "dependencies": {
+    "@pulse/types": "workspace:*",
+    "undici": "6.19.8",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "tsx": "4.11.2",
+    "typescript": "5.4.5"
+  }
+}
