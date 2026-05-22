@@ -1,0 +1,16 @@
+{
+  "fps": 30,
+  "platforms": {
+    "tiktok": { "width": 1080, "height": 1920, "ratio": "9:16" },
+    "instagram_reel": { "width": 1080, "height": 1920, "ratio": "9:16" },
+    "instagram_feed": { "width": 1080, "height": 1350, "ratio": "4:5" },
+    "facebook_feed": { "width": 1080, "height": 1080, "ratio": "1:1" }
+  },
+  "brand": {
+    "primary": "#7C5CFC",
+    "secondary": "#3B82F6",
+    "background": "#F4F6FB",
+    "text": "#0B1220",
+    "tagline": "Tu día, optimizado"
+  }
+}

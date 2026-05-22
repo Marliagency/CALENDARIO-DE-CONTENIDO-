@@ -70,6 +70,67 @@ export async function contentRoutes(app: FastifyInstance) {
     return serializePiece(piece);
   });
 
+  // Performance summary for a single piece — aggregates the latest metric
+  // point per variant. Used by the studio to cross-reference its
+  // creative-runs.jsonl with what actually performed.
+  app.get<{ Params: { slug: string; id: string } }>(
+    "/pieces/:id/performance",
+    async (req, reply) => {
+      const piece = await prisma.contentPiece.findFirst({
+        where: { id: req.params.id, workspaceId: req.workspaceId! },
+        include: { variants: true },
+      });
+      if (!piece) return reply.status(404).send({ error: "Not found" });
+
+      const variantIds = piece.variants.map((v) => v.id);
+      if (variantIds.length === 0) {
+        return { piece_id: piece.id, variants: [] };
+      }
+      const metrics = await prisma.metric.findMany({
+        where: { platformVariantId: { in: variantIds } },
+        orderBy: { fetchedAt: "desc" },
+      });
+
+      // Keep only the latest metric per variant
+      const latestByVariant = new Map<string, (typeof metrics)[number]>();
+      for (const m of metrics) {
+        if (!latestByVariant.has(m.platformVariantId)) {
+          latestByVariant.set(m.platformVariantId, m);
+        }
+      }
+
+      return {
+        piece_id: piece.id,
+        title: piece.title,
+        format: piece.format,
+        hook_used: piece.hookUsed,
+        buyer_persona_id: piece.buyerPersonaId,
+        variants: piece.variants.map((v) => {
+          const m = latestByVariant.get(v.id);
+          return {
+            id: v.id,
+            platform: v.platform,
+            published_at: v.publishedAt,
+            status: v.status,
+            reach: m?.reach ?? null,
+            impressions: m?.impressions ?? null,
+            views: m?.views ?? null,
+            likes: m?.likes ?? null,
+            comments: m?.comments ?? null,
+            shares: m?.shares ?? null,
+            engagement_rate:
+              m && m.impressions
+                ? ((m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0)) / m.impressions
+                : null,
+            hook_rate: m?.hookRate ?? null,
+            hold_rate: m?.holdRate ?? null,
+            fetched_at: m?.fetchedAt ?? null,
+          };
+        }),
+      };
+    },
+  );
+
   const createPieceSchema = z.object({
     title: z.string().min(1).max(200),
     format: z.enum(FORMAT_VALUES),

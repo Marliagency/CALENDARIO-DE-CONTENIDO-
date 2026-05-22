@@ -6,6 +6,7 @@ import type { Brief, Format, ModelChoice, Platform } from "../types.js";
 import type { GenerateOutput, GeneratorAdapter } from "../adapters/base.js";
 import { remotionAdapter } from "../adapters/remotion.js";
 import { stubAdapter } from "../adapters/stub.js";
+import { hyperframesAdapter } from "../adapters/hyperframes.js";
 import {
   canvaAdapter,
   elevenlabsAdapter,
@@ -20,6 +21,7 @@ import path from "node:path";
 
 const ADAPTERS: Record<ModelChoice["tool"], GeneratorAdapter> = {
   remotion: remotionAdapter,
+  hyperframes: hyperframesAdapter,
   svg_to_mp4: svgToMp4Adapter,
   canva_mcp: canvaAdapter,
   mcp_image: mcpImageAdapter,

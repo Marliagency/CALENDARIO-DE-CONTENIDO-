@@ -12,8 +12,17 @@ export function chooseModel(format: Format, brief: Brief): ModelChoice {
   const isFreeFirst = brief.freeFirst;
   const avoided = brief.avoidFormats ?? [];
 
-  // App / UI demos → Remotion (free, deterministic)
+  // Explicit HyperFrames demo
+  if (format === "hyperframes_demo") {
+    return { tool: "hyperframes", estimatedCost: 0, note: "HTML → MP4 via Playwright" };
+  }
+
+  // App / UI demos → HyperFrames if the workspace prefers it, otherwise Remotion
   if (format === "app_demo" || format === "ui_demo") {
+    const prefersHyperFrames = brief.primaryFormats.includes("hyperframes_demo");
+    if (prefersHyperFrames) {
+      return { tool: "hyperframes", estimatedCost: 0, note: "HTML → MP4 via Playwright" };
+    }
     return { tool: "remotion", estimatedCost: 0, note: "Local render, no API" };
   }
 

@@ -10,6 +10,7 @@
 export interface ModelEntry {
   tool:
     | "remotion"
+    | "hyperframes"
     | "svg_to_mp4"
     | "canva_mcp"
     | "mcp_image"
@@ -40,6 +41,14 @@ export const MODEL_CATALOG: ModelEntry[] = [
     kind: "video",
     ratios: ["9:16", "1:1", "4:5", "16:9"],
     notes: "Renders React compositions to MP4. Requires ffmpeg + Chromium on PATH.",
+  },
+  {
+    tool: "hyperframes",
+    id: "hyperframes_local",
+    label: "HyperFrames (HTML → MP4 via Playwright)",
+    kind: "video",
+    ratios: ["9:16", "1:1", "4:5"],
+    notes: "Frame-by-frame Chromium capture. Requires Playwright + FFmpeg.",
   },
   {
     tool: "svg_to_mp4",

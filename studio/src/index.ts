@@ -15,4 +15,6 @@ export { generateOne } from "./lib/generate.js";
 export { uploadCreative } from "./lib/upload.js";
 export { runPipeline, formatPipelineReport } from "./lib/pipeline.js";
 export { MODEL_CATALOG, findModel, modelsFor } from "./data/model-catalog.js";
+export { readRuns, aggregate, formatTable } from "./lib/spend-report.js";
+export { computeInsights, formatInsights } from "./lib/insights.js";
 export * from "./types.js";

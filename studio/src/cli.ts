@@ -40,6 +40,8 @@ import { stubAdapter } from "./adapters/stub.js";
 import { uploadCreative } from "./lib/upload.js";
 import { proposeConcepts } from "./lib/concepts.js";
 import { runPipeline, formatPipelineReport } from "./lib/pipeline.js";
+import { invalidateBrandBrain } from "./lib/brand-brain.js";
+import { computeInsights, formatInsights, type InsightDim } from "./lib/insights.js";
 import type { Format, Platform } from "./types.js";
 
 function args(): { cmd: string; flags: Record<string, string | true> } {
@@ -96,9 +98,28 @@ async function brainCmd(slug?: string) {
   console.log(summarizeBrain(brain));
 }
 
-async function spendCmd() {
+async function spendCmd(flags: Record<string, string | true>) {
   const s = await readSpend();
-  console.log(JSON.stringify(s, null, 2));
+  console.log(`Budget:         ${s.creditsSpentThisMonth} / ${s.monthlyCreditsBudget} credits`);
+  console.log(`Used:           ${s.pctUsed.toFixed(0)}%`);
+  console.log(`Remaining:      ${s.remaining}`);
+  if (s.warn) console.log(`⚠ Over warn threshold (${config().HIGGSFIELD_WARN_AT_PCT}%)`);
+  if (s.blockPremium) console.log(`⛔ Premium models blocked (>= ${config().HIGGSFIELD_BLOCK_PREMIUM_AT_PCT}%)`);
+
+  if (flags.report) {
+    const { readRuns, aggregate, formatTable } = await import("./lib/spend-report.js");
+    const days = Number(typeof flags.days === "string" ? flags.days : "30");
+    const dim = (typeof flags.by === "string" ? flags.by : "tool") as
+      | "tool"
+      | "format"
+      | "workspace"
+      | "persona"
+      | "model";
+    const rows = await readRuns(days);
+    const agg = aggregate(rows, dim);
+    console.log(`\n--- Last ${days} days, grouped by ${dim} ---`);
+    console.log(formatTable(agg, dim));
+  }
 }
 
 async function replayCmd() {
@@ -248,6 +269,16 @@ async function generateCmd(flags: Record<string, string | true>) {
   });
   const concepts = proposeConcepts(brief);
   const concept = concepts.find((c) => c.index === conceptIndex) ?? concepts[0];
+
+  const spend = await readSpend();
+  if (spend.warn) {
+    console.log(
+      `⚠ Already at ${spend.pctUsed.toFixed(0)}% of the monthly budget (${spend.creditsSpentThisMonth}/${spend.monthlyCreditsBudget} credits).`,
+    );
+  }
+  if (spend.blockPremium) {
+    console.log(`⛔ Premium models will be blocked this run.`);
+  }
   console.log(`Running pipeline for concept #${concept.index}: ${concept.title}`);
 
   const report = await runPipeline({
@@ -263,6 +294,69 @@ async function generateCmd(flags: Record<string, string | true>) {
   console.log(formatPipelineReport(report, brain));
 }
 
+async function switchCmd(slug?: string) {
+  if (!slug) {
+    console.log("Usage: pulse-studio switch <slug>");
+    process.exit(2);
+  }
+  const before = config().PULSE_WORKSPACE_SLUG;
+  setActiveWorkspace(slug);
+  invalidateBrandBrain(before);
+  invalidateBrandBrain(slug);
+  console.log(`Switched: ${before} → ${slug}`);
+  // Pre-warm the new brain so subsequent commands feel snappy.
+  try {
+    const brain = await getBrandBrain(slug);
+    console.log("\n--- New workspace summary ---");
+    console.log(summarizeBrain(brain));
+  } catch (err) {
+    console.log(`Brain fetch failed: ${(err as Error).message}`);
+  }
+}
+
+async function insightsCmd(flags: Record<string, string | true>) {
+  const c = config();
+  const slug = typeof flags.slug === "string" ? flags.slug : c.PULSE_WORKSPACE_SLUG;
+  const days = Number(typeof flags.days === "string" ? flags.days : "30");
+  const dim = (typeof flags.by === "string" ? flags.by : "tool") as InsightDim;
+
+  const rows = await computeInsights({
+    workspaceSlug: slug,
+    daysBack: days,
+    dim,
+    apiKey: c.PULSE_API_KEY,
+  });
+  console.log(`Last ${days} days · workspace=${slug} · grouped by ${dim}`);
+  console.log(formatInsights(rows, dim));
+}
+
+async function hyperframesRenderCmd(flags: Record<string, string | true>) {
+  const c = config();
+  const slug = typeof flags.slug === "string" ? flags.slug : c.PULSE_WORKSPACE_SLUG;
+  const template = typeof flags.template === "string" ? flags.template : "app-demo-30s";
+  const platform = (typeof flags.platform === "string" ? flags.platform : "tiktok") as Platform;
+  const duration = Number(typeof flags.duration === "string" ? flags.duration : "30");
+
+  const outDir = path.resolve(c.RENDERS_DIR, slug);
+  await mkdir(outDir, { recursive: true });
+  const outPath = path.join(outDir, `hyperframes-${template}-${platform}-${Date.now()}.mp4`);
+
+  try {
+    const { renderHyperFrames } = await import("./lib/hyperframes-render.js");
+    await renderHyperFrames({
+      workspaceSlug: slug,
+      template,
+      platform,
+      durationSec: duration,
+      outPath,
+    });
+    console.log(`✓ Rendered to ${outPath}`);
+  } catch (err) {
+    console.log(`✗ HyperFrames render failed: ${(err as Error).message}`);
+    console.log("  Make sure playwright + ffmpeg are installed locally.");
+  }
+}
+
 async function main() {
   const { cmd, flags } = args();
   switch (cmd) {
@@ -273,7 +367,7 @@ async function main() {
       await brainCmd(typeof flags.slug === "string" ? flags.slug : undefined);
       break;
     case "spend":
-      await spendCmd();
+      await spendCmd(flags);
       break;
     case "replay":
       await replayCmd();
@@ -290,10 +384,20 @@ async function main() {
     case "generate":
       await generateCmd(flags);
       break;
+    case "hyperframes-render":
+      await hyperframesRenderCmd(flags);
+      break;
+    case "switch":
+      // The slug comes positionally: `pulse-studio switch <slug>`
+      await switchCmd(process.argv[3]);
+      break;
+    case "insights":
+      await insightsCmd(flags);
+      break;
     default:
       console.log(`Unknown command: ${cmd}`);
       console.log(
-        "Available: doctor, brain, spend, replay, smoke, test-overlay, propose, generate",
+        "Available: doctor, brain, spend, replay, smoke, test-overlay, propose, generate, hyperframes-render, switch, insights",
       );
       process.exit(2);
   }

@@ -17,6 +17,7 @@ export type Format =
   | "lifestyle_ad"
   | "app_demo"
   | "ui_demo"
+  | "hyperframes_demo"
   | "motion_graphic"
   | "data_animation"
   | "text_video"
@@ -153,6 +154,7 @@ export interface QCResult {
 export interface ModelChoice {
   tool:
     | "remotion"
+    | "hyperframes"
     | "svg_to_mp4"
     | "canva_mcp"
     | "mcp_image"

@@ -50,6 +50,20 @@ pnpm --filter @pulse/studio studio test-overlay    # writes branded variants for
 pnpm --filter @pulse/studio studio propose --format ugc_video
 pnpm --filter @pulse/studio studio generate --format ugc_video --concept 1
 pnpm --filter @pulse/studio studio generate --format image --concept 2 --dry-run
+
+# Phase 5 — HyperFrames render (local Playwright + FFmpeg)
+pnpm --filter @pulse/studio studio hyperframes-render \
+  --slug qyro --template app-demo-30s --platform tiktok --duration 30
+
+# Phase 6 — spend report
+pnpm --filter @pulse/studio studio spend
+pnpm --filter @pulse/studio studio spend --report --by tool --days 30
+pnpm --filter @pulse/studio studio spend --report --by model --days 7
+
+# Phase 7 — workspace switching + insights
+pnpm --filter @pulse/studio studio switch personal
+pnpm --filter @pulse/studio studio insights --by hook --days 30
+pnpm --filter @pulse/studio studio insights --by tool --days 14
 ```
 
 ### Pipeline contract
