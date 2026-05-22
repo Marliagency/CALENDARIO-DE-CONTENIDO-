@@ -104,6 +104,16 @@ export interface Brief {
   campaignId?: string;
 }
 
+export interface Concept {
+  index: number;
+  title: string;
+  hook: string;
+  angle: string;
+  structure: string;
+  platforms: Platform[];
+  centralClaim: string;
+}
+
 export interface PlatformVariant {
   platform: Platform;
   mediaUrl: string;          // local path or remote URL of the rendered asset

@@ -4,6 +4,7 @@ import { prisma } from "../db.js";
 import { stringifyJSON } from "../lib/json.js";
 import { requireApiKey } from "../lib/api-key-auth.js";
 import { notifyPieceInReview } from "../lib/notifications.js";
+import { storage } from "../lib/storage.js";
 
 const variantSchema = z.object({
   social_account_nickname: z.string().optional(),
@@ -176,6 +177,66 @@ export async function ingestRoutes(app: FastifyInstance) {
         workspace_id: workspaceId,
         status: piece.status,
         platform_variants: variants,
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------
+  // POST /api/v1/ingest/creative-uploads
+  //
+  // Studio (Session 2) uploads a rendered creative file and gets back a
+  // signed URL it can drop into platform_variants[].media_url. Unlike
+  // /w/:slug/uploads this does NOT create a BrandAsset — these are
+  // ephemeral creatives, not brand-library entries.
+  // ---------------------------------------------------------------
+  app.post(
+    "/creative-uploads",
+    {
+      preHandler: requireApiKey("ingest"),
+      config: {
+        rateLimit: {
+          max: 120,
+          timeWindow: "1 minute",
+          keyGenerator: (req: any) => {
+            const auth = req.headers.authorization;
+            return auth?.startsWith("Bearer ") ? `apikey:${auth.slice(7, 22)}` : req.ip;
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const workspaceId = req.apiKey!.workspaceId;
+      const parts = req.parts();
+      let fileBuf: Buffer | null = null;
+      let originalFilename = "creative";
+      let fileType: string | undefined;
+
+      for await (const part of parts) {
+        if (part.type === "file") {
+          if (fileBuf) {
+            return reply.status(400).send({ error: "Only one file per upload" });
+          }
+          fileBuf = await part.toBuffer();
+          originalFilename = part.filename ?? "creative";
+          fileType = part.mimetype;
+        }
+      }
+
+      if (!fileBuf) {
+        return reply.status(400).send({ error: "Missing file" });
+      }
+
+      const { key } = await storage.put({
+        workspaceId,
+        filename: originalFilename,
+        body: fileBuf,
+      });
+
+      return reply.status(201).send({
+        url: storage.signedUrl(key),
+        key,
+        size_bytes: fileBuf.byteLength,
+        content_type: fileType ?? null,
       });
     },
   );

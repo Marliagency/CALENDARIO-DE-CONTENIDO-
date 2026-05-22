@@ -9,6 +9,7 @@ build
 studio/logs/
 studio/renders/
 studio/cache/
+studio/render-requests/
 studio/pending-pushes.jsonl
 studio/remotion-projects/*/out/
 studio/remotion-projects/*/node_modules/

@@ -29,11 +29,50 @@ pnpm --filter @pulse/studio studio doctor
 ## Available subcommands
 
 ```bash
+# Phase 0 — verify the environment
 pnpm --filter @pulse/studio studio doctor
 pnpm --filter @pulse/studio studio brain --slug qyro
 pnpm --filter @pulse/studio studio spend
-pnpm --filter @pulse/studio studio replay   # retries pushes saved on disk
+pnpm --filter @pulse/studio studio replay         # retries pushes saved on disk
+
+# Phase 1 — smoke test
+pnpm --filter @pulse/studio studio smoke           # generates a stub PNG,
+                                                   # brands it, uploads to Pulse,
+                                                   # pushes it as IN_REVIEW
+pnpm --filter @pulse/studio studio smoke --skip-branding   # no ffmpeg env
+
+# Phase 2 — branding overlay
+pnpm --filter @pulse/studio studio test-overlay    # writes branded variants for
+                                                   # all platforms under
+                                                   # studio/cache/test-overlays/
+
+# Phase 3 — full pipeline
+pnpm --filter @pulse/studio studio propose --format ugc_video
+pnpm --filter @pulse/studio studio generate --format ugc_video --concept 1
+pnpm --filter @pulse/studio studio generate --format image --concept 2 --dry-run
 ```
+
+### Pipeline contract
+
+`generate` runs:
+
+1. Build brief from Brand Brain.
+2. Propose 3 concepts; CLI picks the one matching `--concept`.
+3. For each target platform → pick a model via `chooseModel` → generate the
+   asset (Remotion locally, or stub if the adapter is external and not yet
+   wired in this session) → branding overlay → caption build → QC → upload to
+   Pulse → push.
+4. QC failures regenerate once. If the retry also fails the variant is dropped
+   from the push; surviving variants still ship.
+
+### External tool adapters (Higgsfield / Canva / mcp-image / ElevenLabs / Pletor)
+
+Those models can't run inside this Node process — they live in MCP servers or
+Claude Code skills. The adapter writes a `studio/render-requests/*.json` file
+describing what to generate; the Claude Code chat (acting as the studio agent)
+picks it up, invokes the skill / MCP, and writes the resulting file to
+`studio/renders/`. In `--dry-run` mode every external adapter falls back to
+the stub so the rest of the pipeline still runs end-to-end.
 
 ## Architecture
 
@@ -57,18 +96,27 @@ pnpm --filter @pulse/studio studio replay   # retries pushes saved on disk
 
 ## Module responsibilities
 
-| Module              | Responsibility                                          |
-|---------------------|---------------------------------------------------------|
-| `lib/config.ts`     | Env-driven config; per-workspace API key resolution     |
-| `lib/pulse-api.ts`  | Typed HTTP client (undici) with timeouts                |
-| `lib/brand-brain.ts`| Brand Brain fetcher with 30-min TTL cache               |
-| `lib/brief.ts`      | Builds the generation Brief from Brain + user request   |
-| `lib/router.ts`     | Picks the cheapest tool that can produce the format     |
-| `lib/qc.ts`         | Pre-push QC: ratio, duration, claims, logo, hook, subs  |
-| `lib/branding.ts`   | FFmpeg overlay of workspace logo per platform position  |
-| `lib/push.ts`       | Push with idempotency, retry backoff, pending queue     |
-| `lib/spend.ts`      | Budget guard; blocks premium models past threshold      |
-| `lib/logger.ts`     | Append-only JSONL of every creative run                 |
+| Module                  | Responsibility                                          |
+|-------------------------|---------------------------------------------------------|
+| `lib/config.ts`         | Env-driven config; per-workspace API key resolution     |
+| `lib/pulse-api.ts`      | Typed HTTP client (undici) with timeouts                |
+| `lib/brand-brain.ts`    | Brand Brain fetcher with 30-min TTL cache               |
+| `lib/brief.ts`          | Builds the generation Brief from Brain + user request   |
+| `lib/router.ts`         | Picks the cheapest tool that can produce the format     |
+| `lib/qc.ts`             | Pre-push QC: ratio, duration, claims, logo, hook, subs  |
+| `lib/branding.ts`       | FFmpeg overlay of workspace logo per platform position  |
+| `lib/upload.ts`         | POST `/ingest/creative-uploads` (multipart)             |
+| `lib/push.ts`           | Push with idempotency, retry backoff, pending queue     |
+| `lib/concepts.ts`       | Deterministic 3-concept proposer (chat can override)    |
+| `lib/caption.ts`        | Per-platform caption / hashtag / first-comment builder  |
+| `lib/generate.ts`       | Dispatches a ModelChoice to the right adapter           |
+| `lib/pipeline.ts`       | End-to-end orchestrator (brief → push)                  |
+| `lib/spend.ts`          | Budget guard; blocks premium models past threshold      |
+| `lib/logger.ts`         | Append-only JSONL of every creative run                 |
+| `adapters/stub.ts`      | Hand-rolled PNG generator for tests / dry runs          |
+| `adapters/remotion.ts`  | Invokes `npx remotion render` per workspace             |
+| `adapters/external.ts`  | Emits render-request JSON for MCP-driven adapters       |
+| `data/model-catalog.ts` | Source of truth for model names, costs, ratios          |
 
 ## Testing
 
