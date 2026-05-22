@@ -87,9 +87,19 @@ export const remotionAdapter: GeneratorAdapter = {
     );
 
     if (!projectRoot || req.dryRun) {
-      // Fall back to the stub so the user can run the pipeline end-to-end
-      // before bootstrapping the workspace's Remotion project. The CLI
-      // surfaces a warning so they don't ship a stub PNG by accident.
+      // No Remotion project (or dry-run): try the local canvas renderer for
+      // formats we know how to draw. It produces a real branded PNG instead
+      // of the solid-colour stub, so the pipeline ships something usable.
+      // Falls back to stub on unsupported formats or render errors.
+      if (!req.dryRun) {
+        try {
+          const { canvasLocalAdapter } = await import("./canvas-local.js");
+          const out = await canvasLocalAdapter.generate(req);
+          return { ...out, toolNote: `Canvas local render @ ${dims.w}x${dims.h} (no Remotion project)` };
+        } catch {
+          // fall through to stub
+        }
+      }
       const { stubAdapter } = await import("./stub.js");
       const out = await stubAdapter.generate(req);
       return {

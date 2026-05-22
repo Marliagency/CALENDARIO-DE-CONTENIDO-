@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@pulse/types": "workspace:*",
+    "canvas": "2.11.2",
     "undici": "6.19.8",
     "zod": "3.23.8"
   },
