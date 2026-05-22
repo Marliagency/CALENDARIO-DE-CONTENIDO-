@@ -32,6 +32,7 @@ export function QueuePage() {
   if (!ws) return <NotFoundPage />;
 
   const pieces = sync.pieces(ws.id);
+  console.log("[DEBUG] mockMode:", import.meta.env.VITE_MOCK_API, "ws.id:", ws?.id, "total pieces:", pieces.length, pieces.map(p => p.id));
 
   const filtered = useMemo(() => {
     const statuses = TABS.find((t) => t.id === tab)?.statuses ?? [];
