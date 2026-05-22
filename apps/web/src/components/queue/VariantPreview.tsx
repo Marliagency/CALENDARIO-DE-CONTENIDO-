@@ -3,8 +3,16 @@ import type { PlatformVariant } from "@pulse/types";
 import { sync } from "@/lib/api/client";
 import { platformLabel } from "@/lib/platform";
 
+const IMAGE_EXTS = /\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i;
+
+function isImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return IMAGE_EXTS.test(url.split("?")[0]);
+}
+
 export function VariantPreview({ variant }: { variant: PlatformVariant }) {
   const acc = sync.allAccounts().find((a) => a.id === variant.socialAccountId);
+  const hasImage = isImageUrl(variant.mediaUrl);
 
   return (
     <div className="space-y-2">
@@ -18,26 +26,37 @@ export function VariantPreview({ variant }: { variant: PlatformVariant }) {
 
           {/* Media */}
           <div className="relative h-full w-full">
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, var(--ws-primary) 0%, var(--ws-secondary) 100%)`,
-                opacity: 0.5,
-              }}
-            />
-            <div className="absolute inset-0 grid place-items-center text-white/80">
-              <div className="text-center">
-                <Smartphone className="mx-auto size-10 opacity-70" />
-                <div className="mt-2 text-[10px] uppercase tracking-wider">
-                  Vídeo {variant.ratio}
-                </div>
-                {variant.durationS && (
-                  <div className="text-[10px] opacity-70">
-                    {variant.durationS}s
+            {hasImage ? (
+              <img
+                src={variant.mediaUrl!}
+                alt={variant.caption ?? "preview"}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <>
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: `linear-gradient(135deg, var(--ws-primary) 0%, var(--ws-secondary) 100%)`,
+                    opacity: 0.5,
+                  }}
+                />
+                <div className="absolute inset-0 grid place-items-center text-white/80">
+                  <div className="text-center">
+                    <Smartphone className="mx-auto size-10 opacity-70" />
+                    <div className="mt-2 text-[10px] uppercase tracking-wider">
+                      {variant.durationS ? "Vídeo" : "Media"} {variant.ratio}
+                    </div>
+                    {variant.durationS && (
+                      <div className="text-[10px] opacity-70">
+                        {variant.durationS}s
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
 
             {/* Caption overlay */}
             <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-3 text-white">
@@ -81,6 +100,19 @@ export function VariantPreview({ variant }: { variant: PlatformVariant }) {
           <div className="flex items-center justify-between">
             <span className="text-ink-muted">Duración</span>
             <span className="tabular-nums">{variant.durationS}s</span>
+          </div>
+        )}
+        {variant.mediaUrl && (
+          <div className="flex items-center justify-between">
+            <span className="text-ink-muted">Media</span>
+            <a
+              href={variant.mediaUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate max-w-[160px] text-ws hover:underline"
+            >
+              ver original ↗
+            </a>
           </div>
         )}
       </div>
