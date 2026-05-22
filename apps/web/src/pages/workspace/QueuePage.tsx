@@ -1,8 +1,11 @@
-import { AlertTriangle, Inbox, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, Inbox, Plus, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { ContentPiece, ContentStatus } from "@pulse/types";
 import { sync } from "@/lib/api/client";
+import { dataCache } from "@/lib/api/data-cache";
+import { mockMode } from "@/lib/api";
+import { useCacheVersion } from "@/lib/api/use-data-cache";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -24,14 +27,32 @@ const TABS: { id: Tab; label: string; statuses: ContentStatus[] }[] = [
 
 export function QueuePage() {
   const { slug } = useParams<{ slug: string }>();
+  useCacheVersion();
   const ws = slug ? sync.workspace(slug) : undefined;
   const [tab, setTab] = useState<Tab>("pending");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNewPiece, setShowNewPiece] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!mockMode && slug) {
+      dataCache.refetchPieces(slug).catch(() => {});
+    }
+  }, [slug]);
 
   if (!ws) return <NotFoundPage />;
 
   const pieces = sync.pieces(ws.id);
+
+  async function refresh() {
+    if (mockMode || !slug) return;
+    setRefreshing(true);
+    try {
+      await dataCache.refetchPieces(slug);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const statuses = TABS.find((t) => t.id === tab)?.statuses ?? [];
@@ -56,6 +77,17 @@ export function QueuePage() {
         description="Bandeja del workspace. Revisa, aprueba, programa y boost por pieza."
         actions={
           <div className="flex items-center gap-2">
+            {!mockMode && (
+              <button
+                type="button"
+                onClick={refresh}
+                disabled={refreshing}
+                className="btn-secondary"
+                title="Recargar cola desde el backend"
+              >
+                <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowNewPiece(true)}

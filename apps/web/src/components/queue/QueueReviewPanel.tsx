@@ -3,7 +3,8 @@ import { useState } from "react";
 import type { ContentPiece, PlatformVariant } from "@pulse/types";
 import { sync } from "@/lib/api/client";
 import { http } from "@/lib/api/http";
-import { useApiMutation } from "@/lib/api";
+import { useApiMutation, mockMode } from "@/lib/api";
+import { dataCache } from "@/lib/api/data-cache";
 import { AccountChip } from "@/components/ui/PlatformBadge";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { BoostStepper } from "./BoostStepper";
@@ -44,6 +45,7 @@ export function QueueReviewPanel({ piece, workspaceSlug }: QueueReviewPanelProps
         if (!reason.trim()) return;
         await reqChanges.mutate(reason);
       }
+      if (!mockMode) await dataCache.refetchPieces(workspaceSlug);
       setLastAction(action);
     } catch (e) {
       console.error(e);
@@ -248,6 +250,7 @@ function ScheduleSection({
     try {
       const iso = new Date(val).toISOString();
       await http.scheduleVariant(workspaceSlug, variantId, iso);
+      await dataCache.refetchPieces(workspaceSlug);
       setSaved(variantId);
       setTimeout(() => setSaved(null), 2000);
     } catch (e) {

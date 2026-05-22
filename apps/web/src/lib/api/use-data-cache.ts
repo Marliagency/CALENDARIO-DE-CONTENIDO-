@@ -14,7 +14,7 @@ import { mockMode } from "./client";
 export function useCacheVersion(): number {
   return useSyncExternalStore(
     (cb) => (mockMode ? () => {} : dataCache.subscribe(cb)),
-    () => (mockMode ? 0 : (dataCache.loaded ? 1 : 0)) + (dataCache.workspaces.length << 4),
+    () => (mockMode ? 0 : dataCache.version),
     () => 0,
   );
 }

@@ -47,6 +47,7 @@ interface DataCache {
   formatMetrics: FormatMetric[];
   loaded: boolean;
   lastError: string | null;
+  version: number;
 }
 
 const cache: DataCache = {
@@ -66,11 +67,13 @@ const cache: DataCache = {
   formatMetrics: [],
   loaded: false,
   lastError: null,
+  version: 0,
 };
 
 const listeners = new Set<() => void>();
 
 function notify() {
+  cache.version++;
   for (const l of listeners) l();
 }
 
@@ -91,6 +94,7 @@ export const dataCache = {
   get formatMetrics() { return cache.formatMetrics; },
   get loaded() { return cache.loaded; },
   get lastError() { return cache.lastError; },
+  get version() { return cache.version; },
 
   subscribe(fn: () => void) {
     listeners.add(fn);
@@ -254,6 +258,23 @@ export const dataCache = {
     cache.accounts = [
       ...cache.accounts.filter((a) => a.workspaceId !== ws.id),
       ...fresh,
+    ];
+    notify();
+  },
+
+  async refetchPieces(workspaceSlug: string) {
+    const ws = cache.workspaces.find((w) => w.slug === workspaceSlug);
+    if (!ws) return;
+    const fresh = (await http.getPieces(workspaceSlug)) as (ContentPiece & {
+      variants?: PlatformVariant[];
+    })[];
+    cache.pieces = [
+      ...cache.pieces.filter((p) => p.workspaceId !== ws.id),
+      ...fresh.map(({ variants: _v, ...p }) => p as ContentPiece),
+    ];
+    cache.variants = [
+      ...cache.variants.filter((v) => v.workspaceId !== ws.id),
+      ...fresh.flatMap((p) => p.variants ?? []),
     ];
     notify();
   },
