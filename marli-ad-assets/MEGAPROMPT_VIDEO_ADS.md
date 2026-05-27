@@ -438,4 +438,275 @@ BRAND KIT ADJUNTO: [imágenes de producto, logo, fondos]
 
 ---
 
+## BUGS CONOCIDOS Y SOLUCIONES DEFINITIVAS
+
+Esta sección documenta todos los errores encontrados en producción real. Aplicar siempre antes de ejecutar.
+
+---
+
+### BUG 1 — SyntaxError: Non-ASCII character en heredoc Python
+**Error**: `SyntaxError: Non-ASCII character '\xe2' in file <stdin> on line N`
+**Causa**: Python 2.7 no acepta caracteres no-ASCII en el código fuente cuando lee desde stdin (heredoc). La declaración `# -*- coding: utf-8 -*-` NO funciona en stdin, solo en archivos reales.
+**Caracteres que lo causan**: tildes (`á é í ó ú ñ`), em-dash (`—`), flechas (`→`), checkmarks (`✓`), líneas decorativas (`─`)
+**Solución**: Cero caracteres no-ASCII dentro de cualquier bloque `$PYTHON << PYEOF ... PYEOF`. Los textos con tildes van FUERA del heredoc (en variables bash o en los filtros drawtext).
+**Verificación antes de hacer push**:
+```bash
+python3 -c "
+with open('script.sh','rb') as f:
+    lines = f.readlines()
+in_py = False; bad = []
+for i, line in enumerate(lines):
+    d = line.decode('utf-8', errors='replace')
+    if 'PYTHON <<' in d and 'PYEOF' in d: in_py = True; continue
+    if in_py and line.strip() == b'PYEOF': in_py = False; continue
+    if in_py:
+        for j,b in enumerate(line):
+            if b > 127:
+                bad.append(f'  linea {i+1}: 0x{b:02x} -> {d.rstrip()}')
+                break
+print('LIMPIO' if not bad else '\n'.join(bad))
+"
+```
+
+---
+
+### BUG 2 — AttributeError: Wave_write has no attribute `__exit__`
+**Error**: `AttributeError: Wave_write instance has no attribute '__exit__'`
+**Causa**: Python 2.7: `wave.Wave_write` no implementa el protocolo de context manager. El bloque `with wave.open(...) as wf:` falla.
+**Solución**: Usar open/close explícito:
+```python
+# MAL (Python 2.7):
+with wave.open('music.wav', 'w') as wf:
+    wf.setnchannels(1)
+
+# BIEN (compatible 2.7 y 3.x):
+wf = wave.open('music.wav', 'w')
+wf.setnchannels(1)
+wf.setsampwidth(2)
+wf.setframerate(SR)
+wf.writeframes(samples)
+wf.close()
+```
+
+---
+
+### BUG 3 — AttributeError: `.tobytes()` no existe
+**Error**: `AttributeError: 'numpy.ndarray' object has no attribute 'tobytes'`
+**Causa**: numpy antiguo (pre-1.9) no tiene `.tobytes()`.
+**Solución**: Usar `.tostring()` que es el equivalente compatible:
+```python
+wf.writeframes(samples.tostring())   # compatible numpy antiguo
+# NO: wf.writeframes(samples.tobytes())
+```
+
+---
+
+### BUG 4 — ffmpeg consume el script (syntax error near unexpected token)
+**Error**: `bash: line N: syntax error near unexpected token 'in'` o ffmpeg queda esperando input de teclado.
+**Causa**: Al ejecutar `curl URL | bash`, ffmpeg lee desde stdin y consume el resto del script como si fuera audio de entrada.
+**Solución 1**: Añadir `< /dev/null` a TODAS las llamadas ffmpeg:
+```bash
+"$FF" -y -i input.mp4 output.mp4 -loglevel error < /dev/null
+```
+**Solución 2**: Nunca ejecutar con pipe. Siempre descargar primero:
+```bash
+# MAL:
+curl URL | bash
+
+# BIEN:
+rm -f /tmp/script.sh && curl -sL URL -o /tmp/script.sh && bash /tmp/script.sh
+```
+
+---
+
+### BUG 5 — python3: command not found (macOS Mojave)
+**Error**: `bash: python3: command not found`
+**Causa**: macOS Mojave (10.14) solo trae Python 2.7, no Python 3.
+**Solución**: Detectar el Python disponible al inicio del script:
+```bash
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo "")
+[ -z "$PYTHON" ] && echo "Error: Python no encontrado." && exit 1
+# Usar $PYTHON en lugar de python3 o python en todo el script
+```
+
+---
+
+### BUG 6 — Python 2/3: urllib incompatible
+**Error**: `ImportError: No module named urllib.request` (Python 2) o `ImportError: No module named urllib2` (Python 3)
+**Solución**: Import condicional siempre al inicio del heredoc:
+```python
+from __future__ import print_function
+try:
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError
+except ImportError:
+    from urllib2 import Request, urlopen, HTTPError
+```
+
+---
+
+### BUG 7 — ElevenLabs HTTP 402 (sin créditos)
+**Error**: `HTTP 402` en todas las voces generadas.
+**Causa**: El plan gratuito no tiene créditos suficientes para el modelo solicitado.
+**Solución**: Intentar modelos en orden de menor a mayor costo, con fallback a `say` de macOS:
+```python
+MODELS = ["eleven_multilingual_v2", "eleven_turbo_v2_5", "eleven_flash_v2_5", "eleven_turbo_v2"]
+# Si todos dan 402: usar say -v Jorge -r 190 "texto" en bash
+```
+**Fallback bash** (macOS, voz española):
+```bash
+VOZ_ES=$(say -v '?' 2>/dev/null | grep -iE "\bJorge\b|\bDiego\b" | head -1 | awk '{print $1}')
+[ -z "$VOZ_ES" ] && VOZ_ES="Jorge"
+say -v "$VOZ_ES" -r 190 "texto" -o raw.aiff 2>/dev/null
+"$FF" -y -i raw.aiff -ar 44100 -ac 1 voz.mp3 -loglevel error < /dev/null
+```
+
+---
+
+### BUG 8 — (23) Failed writing body (curl)
+**Error**: `curl: (23) Failed writing body`
+**Causa**: curl intenta escribir la respuesta al stdout mientras bash ya cerró el pipe, o conflicto de encoding con caracteres especiales en el payload.
+**Solución**: Usar Python `urllib` para llamadas a APIs con payload UTF-8 en lugar de curl:
+```python
+body = json.dumps({"text": texto, ...})
+req = Request(url, data=body.encode("utf-8"), headers={...})
+r = urlopen(req, timeout=45)
+data = r.read()
+f = open(salida, "wb"); f.write(data); f.close()
+```
+
+---
+
+### BUG 9 — espeak-ng: command not found
+**Error**: `espeak-ng: command not found`
+**Causa**: `espeak-ng` es exclusivo de Linux. No existe en macOS.
+**Solución**: Reemplazar siempre por el TTS nativo de macOS (`say`):
+```bash
+say -v "Jorge" -r 190 "texto aqui" -o output.aiff
+"$FF" -y -i output.aiff -ar 44100 -ac 1 output.mp3 -loglevel error < /dev/null
+```
+
+---
+
+### BUG 10 — fmod(a,b) rompe el parser de aevalsrc en ffmpeg
+**Error**: `No option name near '44100:d=55'` / `Invalid argument`
+**Causa**: ffmpeg interpreta la coma dentro de `fmod(t,0.5085)` como separador de filtros/opciones en el filtergraph.
+**Solución**: Reescribir `fmod(a,b)` como `a - floor(a*(1/b))*b` (equivalente matemático, sin comas):
+```bash
+# MAL:
+aevalsrc=sin(2*PI*80*t)*exp(-22*fmod(t,0.5085))*0.5:s=44100:d=30
+
+# BIEN (sin comas en los argumentos de funciones):
+# fmod(t, 0.5085) = t - floor(t * 1.9666) * 0.5085
+aevalsrc=sin(2*PI*80*t)*exp(-22*(t-floor(t*1.9666)*0.5085))*0.5:s=44100:d=30
+
+# Tabla de equivalencias para 118 BPM:
+# fmod(t, 0.5085) -> t-floor(t*1.9666)*0.5085  (1 beat)
+# fmod(t, 0.2542) -> t-floor(t*3.934)*0.2542   (8th note)
+# fmod(t, 0.1271) -> t-floor(t*7.867)*0.1271   (16th note)
+```
+
+---
+
+### BUG 11 — Script cacheado en /tmp no se actualiza
+**Síntoma**: Se aplica el fix pero el error persiste en la misma línea.
+**Causa**: `/tmp/script.sh` contiene la versión anterior del script.
+**Solución**: Borrar siempre antes de descargar:
+```bash
+rm -f /tmp/script.sh && curl -sL "URL" -o /tmp/script.sh && bash /tmp/script.sh
+```
+**Verificar versión descargada**:
+```bash
+head -3 /tmp/script.sh   # debe mostrar el comentario de la versión más reciente
+```
+
+---
+
+### BUG 12 — GitHub CDN sirve versión antigua tras push
+**Síntoma**: `curl` descarga el script pero sigue fallando con el bug anterior.
+**Causa**: GitHub CDN puede tardar 30-60 segundos en propagar un nuevo commit.
+**Solución**: Esperar 30s y reintentar. Para verificar que el contenido es nuevo:
+```bash
+curl -sL "URL" | head -5
+# Si muestra HTML o versión vieja, esperar y reintentar
+```
+
+---
+
+### BUG 13 — Texto distorsionado en clips de IA
+**Síntoma**: El texto generado por la IA aparece borroso, deformado o con letras incorrectas.
+**Causa**: Los modelos de video IA (Higgsfield, Kling, Runway) no pueden generar texto legible de forma fiable.
+**Solución**: NUNCA incluir texto en los prompts de generación de video IA. Todo texto se añade en post-producción con ffmpeg `drawtext`:
+```bash
+drawtext=font='Helvetica Neue Bold':text='TEXTO PERFECTO':fontsize=72:
+  fontcolor=white:borderw=3:bordercolor=black@0.9:
+  x=(w-text_w)/2:y=(h-text_h)/2:
+  alpha='EXPRESION_FADE':enable='between(t,T_IN,T_OUT)'
+```
+
+---
+
+### BUG 14 — numpy no disponible en el sistema
+**Error**: `ImportError: No module named numpy`
+**Causa**: macOS Mojave con Python 2.7 del sistema no incluye numpy.
+**Solución**: Nunca depender de numpy para generación de audio. Usar ffmpeg `aevalsrc` que no requiere ninguna dependencia Python:
+```bash
+# En lugar de generar música con Python/numpy:
+"$FF" -y -f lavfi -i "aevalsrc=EXPRESION:s=44100:d=DURACION" \
+  -af "afade=t=in:st=0:d=2,afade=t=out:st=FIN:d=3" \
+  music.wav -loglevel error < /dev/null
+```
+
+---
+
+### BUG 15 — Fuente con espacio en el path rompe fontfile=
+**Error**: ffmpeg no encuentra la fuente o el filtro drawtext falla silenciosamente.
+**Causa**: Rutas como `/System/Library/Fonts/Supplemental/Arial Bold.ttf` tienen un espacio que puede confundir el parser de filtros.
+**Solución**: Usar font por nombre (no por ruta) cuando hay espacios, o priorizar fuentes sin espacios:
+```bash
+# Orden de prioridad (sin espacios en el path):
+for f in \
+  "/System/Library/Fonts/SFNS.ttf" \
+  "/System/Library/Fonts/HelveticaNeue.ttc" \
+  "/System/Library/Fonts/Helvetica.ttc" \
+  "/System/Library/Fonts/Arial.ttf"; do
+  [ -f "$f" ] && FONT_PARAM="fontfile='${f}'" && break
+done
+# Fallback por nombre si no se encontró archivo:
+[ -z "$FONT_PARAM" ] && FONT_PARAM="font='Helvetica Neue Bold'"
+```
+
+---
+
+### BUG 16 — Docker / Node 20+ / node --env-file no disponibles
+**Entorno afectado**: macOS Mojave 10.14.6
+**Limitaciones del sistema**:
+- No Docker Desktop (requiere macOS 14+)
+- No Node 20+ (problemas OpenSSL en Mojave)
+- No `node --env-file` (Node 18 no lo soporta)
+**Soluciones**:
+```bash
+nvm use 18           # Node 18 LTS
+dotenv -e .env.local -- node script.js   # en lugar de node --env-file
+# DB: SQLite en dev (Prisma), no PostgreSQL
+# Jobs: tabla Job + polling, no BullMQ/Redis
+```
+
+---
+
+### CHECKLIST PRE-EJECUCIÓN
+
+Antes de hacer push y ejecutar cualquier script bash con Python heredocs:
+
+- [ ] `python3 scanner.py` — cero bytes >127 en heredocs PYEOF
+- [ ] Grep `with wave.open` — no debe existir en heredocs
+- [ ] Grep `\.tobytes()` — usar `.tostring()` en su lugar
+- [ ] Grep `fmod(` — reemplazar con equivalente floor
+- [ ] Grep `espeak` — no existe en macOS, usar `say`
+- [ ] Todo ffmpeg tiene `< /dev/null`
+- [ ] Script se ejecuta con `rm -f /tmp/s.sh && curl ... -o /tmp/s.sh && bash /tmp/s.sh`
+- [ ] Prompts de Higgsfield sin texto legible
+
+---
+
 *Este prompt es genérico y reutilizable para cualquier marca. Inyecta el contexto de empresa y assets del brand kit antes de ejecutar.*
