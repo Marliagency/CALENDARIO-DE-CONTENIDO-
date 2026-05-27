@@ -78,7 +78,7 @@ def api_get(path):
     return json.loads(r.read().decode("utf-8"))
 
 # Voz: preferencia 1 = espanol+masculino+comercial, 2 = espanol, 3 = masculino
-# Default: Adam — voz grave y autoritaria (comercial)
+# Default: Adam - voz grave y autoritaria (comercial)
 voice_id = "pNInz6obpgDQGcFmaJgB"
 try:
     data = api_get("/v1/voices")
@@ -136,7 +136,7 @@ def gen_voz(texto, salida, desc):
                 return True
         except HTTPError as e:
             if e.code == 402:
-                print("  402 " + model + " — probando siguiente...")
+                print("  402 " + model + " - probando siguiente...")
                 continue
             print("  HTTP " + str(e.code) + " en " + desc); return False
         except Exception as e:
@@ -144,7 +144,7 @@ def gen_voz(texto, salida, desc):
     print("  Sin creditos ElevenLabs para " + desc)
     return False
 
-# Texto mas energico y directo — solo voz 1 y voz 2
+# Texto mas energico y directo - solo voz 1 y voz 2
 textos = [
     ("Agenda caotica. Pacientes perdidos. BASTA. Marli Agency lo cambia todo.", "voz1.mp3", "Clip 1"),
     ("Marli Agency. Inteligencia artificial para psicologos. Tu consulta. Perfectamente transformada.", "voz2.mp3", "Clip 2"),
