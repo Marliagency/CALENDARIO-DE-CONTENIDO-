@@ -182,8 +182,8 @@ echo -e "\n[4/6] ${BOLD}Generando musica cinematica...${NC}"
   -f lavfi -i "aevalsrc=sin(2*PI*87.3*t)*0.23+sin(2*PI*174.6*t)*0.21+sin(2*PI*220*t)*0.16+sin(2*PI*261.6*t)*0.12+sin(2*PI*329.6*t)*0.09+sin(2*PI*175.2*t)*0.06:s=44100:d=15" \
   -f lavfi -i "aevalsrc=sin(2*PI*130.8*t)*0.23+sin(2*PI*164.8*t)*0.18+sin(2*PI*196*t)*0.15+sin(2*PI*246.9*t)*0.12+sin(2*PI*293.7*t)*0.09+sin(2*PI*131.2*t)*0.06:s=44100:d=10" \
   -f lavfi -i "aevalsrc=sin(2*PI*98*t)*0.25+sin(2*PI*146.8*t)*0.20+sin(2*PI*196*t)*0.16+sin(2*PI*246.9*t)*0.12+sin(2*PI*293.7*t)*0.08+sin(2*PI*98.4*t)*0.06:s=44100:d=15" \
-  -f lavfi -i "aevalsrc=sin(2*PI*80*t)*exp(-22*fmod(t,0.5085))*0.52+sin(2*PI*42*t)*exp(-28*fmod(t,0.5085))*0.36:s=44100:d=55" \
-  -f lavfi -i "aevalsrc=(2*random(0)-1)*exp(-55*fmod(t,0.2542))*0.18:s=44100:d=55" \
+  -f lavfi -i "aevalsrc=sin(2*PI*80*t)*exp(-22*fmod(t\,0.5085))*0.52+sin(2*PI*42*t)*exp(-28*fmod(t\,0.5085))*0.36:s=44100:d=55" \
+  -f lavfi -i "aevalsrc=(2*random(0)-1)*exp(-55*fmod(t\,0.2542))*0.18:s=44100:d=55" \
   -filter_complex \
     "[0]afade=t=in:st=0:d=2,tremolo=f=2:d=0.22[am];
      [1]tremolo=f=4:d=0.45,afade=t=in:st=0:d=0.3[fa];
