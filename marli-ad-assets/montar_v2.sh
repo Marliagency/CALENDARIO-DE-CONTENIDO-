@@ -55,67 +55,109 @@ dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_202
 # ── 3. VOCES ELEVENLABS ────────────────────────────────────────────────────────
 echo -e "\n[3/6] ${BOLD}Generando voces con ElevenLabs...${NC}"
 
-# Obtener la mejor voz en español disponible
-VOICE_ID=$(curl -s -H "xi-api-key: $ELABS_KEY" \
-  "https://api.elevenlabs.io/v1/voices" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-voices = data.get('voices', [])
-# Buscar voz española o latinoamericana
-for v in voices:
-    labels = str(v.get('labels',{})).lower()
-    name = v['name'].lower()
-    if any(x in labels for x in ['spanish','español','latin','castilian','hispanic']):
-        print(v['voice_id']); sys.exit(0)
-# Fallback: primera voz femenina multilingual disponible
-for v in voices:
-    labels = str(v.get('labels',{})).lower()
-    if 'female' in labels or 'femenin' in labels:
-        print(v['voice_id']); sys.exit(0)
-# Último fallback
-if voices:
-    print(voices[0]['voice_id'])
-" 2>/dev/null)
+# Usar Python para todo el proceso ElevenLabs (evita problemas de encoding con tildes)
+python3 << PYEOF
+import urllib.request, urllib.error, json, sys, os
 
-if [ -z "$VOICE_ID" ]; then
-  VOICE_ID="cgSgspJ2msm6clMCkdW9"  # Sarah (multilingual fallback)
-fi
-echo -e "  Voice ID: $VOICE_ID"
+API_KEY = "$ELABS_KEY"
+MODEL   = "$ELABS_MODEL"
 
-gen_voz() {
-  local texto="$1" salida="$2" desc="$3"
-  echo -e "  ↓ Generando voz: $desc..."
-  curl -s -X POST \
-    "https://api.elevenlabs.io/v1/text-to-speech/$VOICE_ID/stream" \
-    -H "xi-api-key: $ELABS_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"text\": \"$texto\",
-      \"model_id\": \"$ELABS_MODEL\",
-      \"voice_settings\": {
-        \"stability\": 0.45,
-        \"similarity_boost\": 0.80,
-        \"style\": 0.25,
-        \"use_speaker_boost\": true
-      }
-    }" -o "$salida"
-  [ -f "$salida" ] && [ $(stat -f%z "$salida" 2>/dev/null || stat -c%s "$salida") -gt 1000 ] \
-    && echo -e "  ${GREEN}✓${NC} $desc generada" \
-    || echo -e "  ${RED}✗${NC} Error en $desc — usando fallback espeak"
-}
+# ── Obtener mejor voz en español ──────────────────────────────────────────────
+def api_get(path):
+    req = urllib.request.Request(
+        f"https://api.elevenlabs.io{path}",
+        headers={"xi-api-key": API_KEY}
+    )
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.load(r)
 
-# Generar narración para cada segmento
-gen_voz "¿Te suena familiar? Pacientes perdidos. Agenda caótica. Noches sin dormir. Hay algo que puede cambiarlo todo." \
-  "voz1.mp3" "Narración clip 1"
+try:
+    voices = api_get("/v1/voices").get("voices", [])
+    voice_id = None
+    # 1. Buscar voz española
+    for v in voices:
+        labels = str(v.get("labels", {})).lower()
+        if any(x in labels for x in ["spanish","español","latin","castilian","hispanic"]):
+            voice_id = v["voice_id"]; break
+    # 2. Voz femenina multilingual
+    if not voice_id:
+        for v in voices:
+            labels = str(v.get("labels", {})).lower()
+            if "female" in labels:
+                voice_id = v["voice_id"]; break
+    # 3. Primera disponible
+    if not voice_id and voices:
+        voice_id = voices[0]["voice_id"]
+    # 4. Hardcoded fallback (Rachel - multilingual)
+    if not voice_id:
+        voice_id = "21m00Tcm4TlvDq8ikWAM"
+    print(f"  Voice ID: {voice_id}")
+    print(f"  Voces disponibles: {len(voices)}")
+except Exception as e:
+    voice_id = "21m00Tcm4TlvDq8ikWAM"
+    print(f"  Usando voz fallback: {voice_id}")
 
-gen_voz "Marli Agency. Inteligencia artificial diseñada para psicólogos. Tu consulta, perfectamente organizada." \
-  "voz2.mp3" "Narración clip 2"
+# ── Generar voz ───────────────────────────────────────────────────────────────
+def gen_voz(texto, salida, desc):
+    print(f"  Generando: {desc}...")
+    payload = json.dumps({
+        "text": texto,
+        "model_id": MODEL,
+        "voice_settings": {
+            "stability": 0.45,
+            "similarity_boost": 0.80,
+            "style": 0.25,
+            "use_speaker_boost": True
+        }
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+        data=payload,
+        headers={
+            "xi-api-key": API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = r.read()
+        if len(data) > 1000:
+            with open(salida, "wb") as f:
+                f.write(data)
+            print(f"  ✓ {desc} ({len(data)//1024}KB)")
+            return True
+        else:
+            print(f"  ✗ Respuesta vacía para {desc}")
+            return False
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="ignore")[:200]
+        print(f"  ✗ HTTP {e.code} en {desc}: {body}")
+        return False
+    except Exception as e:
+        print(f"  ✗ Error en {desc}: {e}")
+        return False
 
-gen_voz "Soy psicóloga y durante años luché con la desorganización. Hasta que descubrí Marli Agency. Ahora mis pacientes están atendidos y yo, tranquila." \
-  "voz3.mp3" "Narración UGC 1"
+textos = [
+    ("¿Te suena familiar? Pacientes perdidos. Agenda caótica. Noches sin dormir. Hay algo que puede cambiarlo todo.",
+     "voz1.mp3", "Narración clip 1"),
+    ("Marli Agency. Inteligencia artificial diseñada para psicólogos. Tu consulta, perfectamente organizada.",
+     "voz2.mp3", "Narración clip 2"),
+    ("Soy psicóloga y durante años luché con la desorganización. Hasta que descubrí Marli Agency. Ahora mis pacientes están atendidos y yo, tranquila.",
+     "voz3.mp3", "Narración UGC 1"),
+    ("Tres cosas que Marli hace por ti: agenda automática, recordatorios inteligentes y seguimiento personalizado. Empieza gratis en marliagency punto com.",
+     "voz4.mp3", "Narración UGC 2"),
+]
 
-gen_voz "Tres cosas que Marli hace por ti: agenda automática, recordatorios inteligentes y seguimiento personalizado. Empieza gratis en marliagency punto com." \
-  "voz4.mp3" "Narración UGC 2"
+ok = 0
+for texto, salida, desc in textos:
+    if gen_voz(texto, salida, desc):
+        ok += 1
+
+print(f"\n  {ok}/4 voces generadas con ElevenLabs")
+if ok < 4:
+    print("  Las que falten usarán fallback espeak")
+PYEOF
 
 # Fallback espeak si ElevenLabs falla
 for i in 1 2 3 4; do
