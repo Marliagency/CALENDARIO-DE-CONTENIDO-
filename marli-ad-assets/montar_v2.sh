@@ -60,15 +60,14 @@ dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_202
 dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_20260527_144456_a21f0d68-f19b-4023-97fb-d6ba092fd073.mp4" \
    "ugc2.mp4" "UGC 2 — 3 beneficios + CTA (15s)"
 
-# ── 3. VOCES ELEVENLABS ────────────────────────────────────────────────────────
-echo -e "\n[3/6] ${BOLD}Generando voces con ElevenLabs...${NC}"
+# ── 3. VOCES ──────────────────────────────────────────────────────────────────
+echo -e "\n[3/6] ${BOLD}Generando voces...${NC}"
 
-# Python 2/3 compatible — genera voces con ElevenLabs
+# Python 2/3 compatible — intenta ElevenLabs con modelos en orden de precio
 $PYTHON << PYEOF
 from __future__ import print_function
 import json, sys, os
 
-# Python 2/3 urllib compatibility
 try:
     from urllib.request import Request, urlopen
     from urllib.error import HTTPError
@@ -76,7 +75,6 @@ except ImportError:
     from urllib2 import Request, urlopen, HTTPError
 
 API_KEY = "$ELABS_KEY"
-MODEL   = "$ELABS_MODEL"
 BASE    = "https://api.elevenlabs.io"
 
 def api_get(path):
@@ -84,98 +82,102 @@ def api_get(path):
     r = urlopen(req, timeout=20)
     return json.loads(r.read().decode("utf-8"))
 
-# Obtener mejor voz disponible
-voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel fallback
+# Obtener mejor voz
+voice_id = "21m00Tcm4TlvDq8ikWAM"
 try:
-    voices = api_get("/v1/voices").get("voices", [])
+    data = api_get("/v1/voices")
+    voices = data.get("voices", [])
     for v in voices:
         labels = str(v.get("labels", {})).lower()
-        if any(x in labels for x in ["spanish","espanol","latin","castilian","hispanic"]):
+        if any(x in labels for x in ["spanish","espanol","latin","castilian"]):
             voice_id = v["voice_id"]; break
     else:
         for v in voices:
             if "female" in str(v.get("labels", {})).lower():
                 voice_id = v["voice_id"]; break
-    print("  Voice ID: " + voice_id + " (" + str(len(voices)) + " voces disponibles)")
+    print("  Voice: " + voice_id + " (" + str(len(voices)) + " disponibles)")
 except Exception as e:
-    print("  Usando voz fallback: " + voice_id)
+    print("  Voz fallback: " + voice_id + " (" + str(e) + ")")
+
+# Probar modelos de menor a mayor costo
+MODELS = [
+    "eleven_flash_v2_5",   # mas barato y rapido
+    "eleven_turbo_v2_5",
+    "eleven_turbo_v2",
+    "eleven_multilingual_v2",
+]
 
 def gen_voz(texto, salida, desc):
-    print("  Generando: " + desc + "...")
-    body = json.dumps({
-        "text": texto,
-        "model_id": MODEL,
-        "voice_settings": {
-            "stability": 0.45,
-            "similarity_boost": 0.80,
-            "style": 0.25,
-            "use_speaker_boost": True
-        }
-    })
-    if sys.version_info[0] >= 3:
+    for model in MODELS:
+        body = json.dumps({
+            "text": texto,
+            "model_id": model,
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+        })
         payload = body.encode("utf-8")
-    else:
-        payload = body.encode("utf-8") if isinstance(body, type(u"")) else body
-    req = Request(
-        BASE + "/v1/text-to-speech/" + voice_id,
-        data=payload,
-        headers={
-            "xi-api-key": API_KEY,
-            "Content-Type": "application/json",
-            "Accept": "audio/mpeg"
-        }
-    )
-    try:
-        r = urlopen(req, timeout=45)
-        data = r.read()
-        if len(data) > 1000:
-            with open(salida, "wb") as f:
-                f.write(data)
-            print("  OK " + desc + " (" + str(len(data)//1024) + "KB)")
-            return True
-        print("  Respuesta vacia para " + desc)
-        return False
-    except HTTPError as e:
-        print("  HTTP " + str(e.code) + " en " + desc)
-        return False
-    except Exception as e:
-        print("  Error en " + desc + ": " + str(e))
-        return False
+        req = Request(
+            BASE + "/v1/text-to-speech/" + voice_id,
+            data=payload,
+            headers={"xi-api-key": API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"}
+        )
+        try:
+            r = urlopen(req, timeout=45)
+            data = r.read()
+            if len(data) > 1000:
+                with open(salida, "wb") as f:
+                    f.write(data)
+                print("  OK " + desc + " [" + model + "] (" + str(len(data)//1024) + "KB)")
+                return True
+        except HTTPError as e:
+            if e.code == 402:
+                print("  402 con " + model + ", probando siguiente...")
+                continue
+            print("  HTTP " + str(e.code) + " en " + desc)
+            return False
+        except Exception as e:
+            print("  Error: " + str(e))
+            return False
+    print("  Sin creditos ElevenLabs para " + desc)
+    return False
 
 textos = [
-    ("Te suena familiar? Pacientes perdidos. Agenda caotica. Noches sin dormir. Hay algo que puede cambiarlo todo.",
-     "voz1.mp3", "Clip 1"),
-    ("Marli Agency. Inteligencia artificial disenada para psicologos. Tu consulta, perfectamente organizada.",
-     "voz2.mp3", "Clip 2"),
-    ("Soy psicologa y durante anos luche con la desorganizacion. Hasta que descubri Marli Agency. Ahora mis pacientes estan atendidos y yo, tranquila.",
-     "voz3.mp3", "UGC 1"),
-    ("Tres cosas que Marli hace por ti: agenda automatica, recordatorios inteligentes y seguimiento personalizado. Empieza gratis en marliagency punto com.",
-     "voz4.mp3", "UGC 2"),
+    ("Te suena familiar? Pacientes perdidos. Agenda caotica. Noches sin dormir. Marli Agency lo cambia todo.", "voz1.mp3", "Clip 1"),
+    ("Marli Agency. Inteligencia artificial para psicologos. Tu consulta, perfectamente organizada.", "voz2.mp3", "Clip 2"),
+    ("Soy psicologa y Marli Agency cambio todo. Agenda automatica. Pacientes atendidos. Yo, tranquila.", "voz3.mp3", "UGC 1"),
+    ("Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Empieza gratis en marliagency punto com.", "voz4.mp3", "UGC 2"),
 ]
 
 ok = sum(1 for t, s, d in textos if gen_voz(t, s, d))
-print("\n  " + str(ok) + "/4 voces OK con ElevenLabs")
+print("\n  " + str(ok) + "/4 voces ElevenLabs OK")
 PYEOF
 
-# Fallback espeak si ElevenLabs falla
+# Fallback con "say" (TTS nativo de Mac — mucho mejor que espeak)
+# Detectar voz española disponible en el sistema
+VOZ_ES=$(say -v '?' 2>/dev/null | grep -iE "es_|Monica|Paulina|Jorge|Spanish" | head -1 | awk '{print $1}')
+[ -z "$VOZ_ES" ] && VOZ_ES="Paulina"  # default español México
+
 for i in 1 2 3 4; do
-  if [ ! -f "voz${i}.mp3" ] || [ $(stat -f%z "voz${i}.mp3" 2>/dev/null || stat -c%s "voz${i}.mp3") -lt 1000 ]; then
-    echo -e "  Usando espeak fallback para voz$i..."
+  SZ=$(stat -f%z "voz${i}.mp3" 2>/dev/null || stat -c%s "voz${i}.mp3" 2>/dev/null || echo 0)
+  if [ ! -f "voz${i}.mp3" ] || [ "$SZ" -lt 1000 ]; then
+    echo -e "  Usando 'say' (Mac TTS) para voz$i con voz $VOZ_ES..."
     case $i in
-      1) TEXTO="Te suena familiar. Pacientes perdidos. Agenda caotica. Marli Agency lo cambia todo." ;;
-      2) TEXTO="Marli Agency. Inteligencia artificial para psicologos. Tu consulta, organizada." ;;
-      3) TEXTO="Soy psicologa y Marli cambio todo. Agenda automatica. Pacientes atendidos." ;;
-      4) TEXTO="Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Marliagency punto com." ;;
+      1) TEXTO="Te suena familiar? Pacientes perdidos. Agenda caotica. Noches sin dormir. Marli Agency lo cambia todo." ;;
+      2) TEXTO="Marli Agency. Inteligencia artificial para psicologos. Tu consulta, perfectamente organizada." ;;
+      3) TEXTO="Soy psicologa y Marli Agency cambio todo. Agenda automatica. Pacientes atendidos. Yo, tranquila." ;;
+      4) TEXTO="Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Empieza gratis en marliagency punto com." ;;
     esac
-    espeak-ng -v es+f3 -s 145 -p 45 -a 200 "$TEXTO" --stdout | \
-      "$FF" -y -f s16le -ar 22050 -ac 1 -i pipe:0 "voz${i}.mp3" -loglevel error 2>/dev/null
+    say -v "$VOZ_ES" -r 155 "$TEXTO" -o "voz${i}_raw.aiff" 2>/dev/null && \
+      "$FF" -y -i "voz${i}_raw.aiff" -ar 44100 -ac 1 "voz${i}.mp3" -loglevel error && \
+      rm -f "voz${i}_raw.aiff" && \
+      echo -e "  ${GREEN}✓${NC} voz${i} generada con say ($VOZ_ES)" || \
+      echo -e "  ${RED}✗${NC} Error generando voz${i}"
   fi
 done
 
-# Convertir MP3 a WAV para procesamiento
+# Convertir MP3 a WAV
 for i in 1 2 3 4; do
-  "$FF" -y -i "voz${i}.mp3" -ar 44100 -ac 1 "voz${i}.wav" -loglevel error 2>/dev/null
-  echo -e "  ${GREEN}✓${NC} voz${i}.wav lista"
+  "$FF" -y -i "voz${i}.mp3" -ar 44100 -ac 1 "voz${i}.wav" -loglevel error 2>/dev/null && \
+    echo -e "  ${GREEN}✓${NC} voz${i}.wav lista" || echo -e "  ${RED}✗${NC} voz${i}.mp3 faltante"
 done
 
 # ── 4. MÚSICA DINÁMICA ────────────────────────────────────────────────────────
