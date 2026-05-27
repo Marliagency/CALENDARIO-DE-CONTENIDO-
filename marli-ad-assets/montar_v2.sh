@@ -205,9 +205,11 @@ if not HAS_NUMPY:
              math.sin(2*math.pi*440*t)*0.15 +
              math.sin(2*math.pi*110*t)*0.10) * v
         samples.append(int(max(-32767, min(32767, s * 32767))))
-    with wave.open('music.wav', 'w') as wf:
-        wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
-        wf.writeframes(struct.pack('<' + 'h'*len(samples), *samples))
+    wf = wave.open('music.wav', 'w')
+    wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
+    import array as arr
+    wf.writeframes(arr.array('h', samples).tostring())
+    wf.close()
     print("  OK Musica basica lista (sin numpy)")
     sys.exit(0)
 
@@ -384,11 +386,12 @@ if max_val > 0:
 
 # Guardar WAV
 samples = (full * 32767).astype(np.int16)
-with wave.open('music.wav', 'w') as wf:
-    wf.setnchannels(1)
-    wf.setsampwidth(2)
-    wf.setframerate(SR)
-    wf.writeframes(samples.tobytes())
+wf = wave.open('music.wav', 'w')
+wf.setnchannels(1)
+wf.setsampwidth(2)
+wf.setframerate(SR)
+wf.writeframes(samples.tostring())
+wf.close()
 print("  OK Musica cinematografica lista (55s)")
 PYEOF
 echo -e "  ${GREEN}✓${NC} Música generada"
