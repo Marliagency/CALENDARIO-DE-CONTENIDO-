@@ -167,7 +167,7 @@ for i in 1 2 3 4; do
       4) TEXTO="Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Empieza gratis en marliagency punto com." ;;
     esac
     say -v "$VOZ_ES" -r 155 "$TEXTO" -o "voz${i}_raw.aiff" 2>/dev/null && \
-      "$FF" -y -i "voz${i}_raw.aiff" -ar 44100 -ac 1 "voz${i}.mp3" -loglevel error && \
+      "$FF" -y -i "voz${i}_raw.aiff" -ar 44100 -ac 1 "voz${i}.mp3" -loglevel error < /dev/null && \
       rm -f "voz${i}_raw.aiff" && \
       echo -e "  ${GREEN}✓${NC} voz${i} generada con say ($VOZ_ES)" || \
       echo -e "  ${RED}✗${NC} Error generando voz${i}"
@@ -176,7 +176,7 @@ done
 
 # Convertir MP3 a WAV
 for i in 1 2 3 4; do
-  "$FF" -y -i "voz${i}.mp3" -ar 44100 -ac 1 "voz${i}.wav" -loglevel error 2>/dev/null && \
+  "$FF" -y -i "voz${i}.mp3" -ar 44100 -ac 1 "voz${i}.wav" -loglevel error < /dev/null 2>/dev/null && \
     echo -e "  ${GREEN}✓${NC} voz${i}.wav lista" || echo -e "  ${RED}✗${NC} voz${i}.mp3 faltante"
 done
 
@@ -393,7 +393,7 @@ mix_and_text() {
     -vf "$vf_filter" \
     -c:v libx264 -crf 16 -preset fast \
     -c:a aac -b:a 192k \
-    "$out" -loglevel error
+    "$out" -loglevel error < /dev/null
 }
 
 # CLIP 1: Psicóloga agotada → robot aparece
@@ -442,7 +442,7 @@ printf "file 'clip1_final.mp4'\nfile 'clip2_final.mp4'\nfile 'ugc1_final.mp4'\nf
   -pix_fmt yuv420p \
   -c:a aac -b:a 192k \
   -movflags +faststart \
-  Marli_Final_v2_ElevenLabs_55s.mp4 -loglevel error
+  Marli_Final_v2_ElevenLabs_55s.mp4 -loglevel error < /dev/null
 
 # Limpiar temporales
 rm -f clip1_final.mp4 clip2_final.mp4 ugc1_final.mp4 ugc2_final.mp4 \
