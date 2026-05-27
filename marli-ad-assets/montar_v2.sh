@@ -1,31 +1,26 @@
 #!/bin/bash
-# Marli Agency — Video Final v2
-# Voz: ElevenLabs Neural (español profesional)
-# Clips: Higgsfield kling3_0 pro (1080×1920)
-# Texto: overlays cinematográficos animados
-# Ejecutar: bash montar_v2.sh
+# Marli Agency — Video Final v3
+# Clips 1-2: voiceover ElevenLabs promocional + musica
+# UGC 1-2:   audio original del hablante + musica muy baja (sin voiceover)
+# Texto:     estilo Apple / Instagram Reels (Helvetica Neue Bold)
+# Musica:    Am-F-C-G con tremolo ritmico dinamico
+# Ejecutar:  bash montar_v2.sh
 
 set -e
 BOLD='\033[1m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; RED='\033[0;31m'; NC='\033[0m'
 DIR="$HOME/Desktop/marli-higgsfield"
 mkdir -p "$DIR" && cd "$DIR"
 
-# Detectar Python disponible (Mojave tiene python 2.7, no python3)
 PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo "")
-if [ -z "$PYTHON" ]; then
-  echo -e "${RED}Error: Python no encontrado. Instala Python desde python.org${NC}"
-  exit 1
-fi
-echo -e "  Python: $PYTHON ($(${PYTHON} --version 2>&1))"
+[ -z "$PYTHON" ] && echo -e "${RED}Error: Python no encontrado.${NC}" && exit 1
 
 echo -e "${BOLD}${BLUE}============================================"
-echo -e "  Marli Agency — Video Final v2"
-echo -e "  ElevenLabs + Higgsfield + Música"
+echo -e "  Marli Agency — Video Final v3"
+echo -e "  Texto Apple-style + UGC audio limpio"
 echo -e "============================================${NC}"
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ELABS_KEY="sk_c837f0ca86c68656206fe1e198b2e5bc444ff40bf61f59bc"
-ELABS_MODEL="eleven_multilingual_v2"
 FF=$(command -v ffmpeg || echo "./ffmpeg")
 
 # ── 1. FFMPEG ─────────────────────────────────────────────────────────────────
@@ -38,35 +33,35 @@ if ! command -v ffmpeg &>/dev/null; then
 fi
 echo -e "  ${GREEN}✓${NC} ffmpeg listo"
 
-# ── 2. DESCARGAR CLIPS HIGGSFIELD ─────────────────────────────────────────────
+# ── 2. DESCARGAR CLIPS ────────────────────────────────────────────────────────
 echo -e "\n[2/6] ${BOLD}Descargando clips Higgsfield...${NC}"
 dl() {
   local url="$1" file="$2" label="$3"
   if [ -f "$file" ] && [ $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file") -gt 500000 ]; then
     echo -e "  ${GREEN}✓${NC} $label ya existe"
   else
-    echo -e "  ↓ Descargando $label..."
+    echo -e "  Descargando $label..."
     curl -L "$url" -o "$file" --progress-bar
     echo -e "  ${GREEN}✓${NC} $label listo"
   fi
 }
 
 dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_20260527_134248_01b9c033-21d9-4ba3-82b6-d15a398e6a75.mp4" \
-   "clip1.mp4" "Clip 1 — Psicóloga + robot (15s)"
+   "clip1.mp4" "Clip 1 — Psicologa + robot (15s)"
 dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_20260527_134242_b9a39831-68c3-477e-bb67-615217d9b776.mp4" \
-   "clip2.mp4" "Clip 2 — Sesión + hero + CTA (15s)"
+   "clip2.mp4" "Clip 2 — Sesion + hero + CTA (15s)"
 dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_20260527_150734_5c2da191-8aff-4c90-9378-93d187f122cb.mp4" \
-   "ugc1.mp4" "UGC 1 — Testimonio psicóloga (10s)"
+   "ugc1.mp4" "UGC 1 — Testimonio (10s)"
 dl "https://d8j0ntlcm91z4.cloudfront.net/user_3DuupfRLOT8CVNxJIjSDN3j9Elm/hf_20260527_144456_a21f0d68-f19b-4023-97fb-d6ba092fd073.mp4" \
-   "ugc2.mp4" "UGC 2 — 3 beneficios + CTA (15s)"
+   "ugc2.mp4" "UGC 2 — Beneficios + CTA (15s)"
 
-# ── 3. VOCES ──────────────────────────────────────────────────────────────────
-echo -e "\n[3/6] ${BOLD}Generando voces...${NC}"
+# ── 3. VOCES (solo clips 1 y 2 — UGC usa su propio audio) ────────────────────
+echo -e "\n[3/6] ${BOLD}Generando voces promocionales...${NC}"
+echo -e "  UGC 1 y 2 usan el audio del hablante (sin voiceover)"
 
-# Python 2/3 compatible — intenta ElevenLabs con modelos en orden de precio
 $PYTHON << PYEOF
 from __future__ import print_function
-import json, sys, os
+import json, sys
 
 try:
     from urllib.request import Request, urlopen
@@ -82,223 +77,247 @@ def api_get(path):
     r = urlopen(req, timeout=20)
     return json.loads(r.read().decode("utf-8"))
 
-# Obtener mejor voz
-voice_id = "21m00Tcm4TlvDq8ikWAM"
+# Voz: preferencia 1 = espanol+masculino+comercial, 2 = espanol, 3 = masculino
+# Default: Adam — voz grave y autoritaria (comercial)
+voice_id = "pNInz6obpgDQGcFmaJgB"
 try:
     data = api_get("/v1/voices")
     voices = data.get("voices", [])
+    found = None
     for v in voices:
-        labels = str(v.get("labels", {})).lower()
-        if any(x in labels for x in ["spanish","espanol","latin","castilian"]):
-            voice_id = v["voice_id"]; break
-    else:
+        lb = str(v.get("labels", {})).lower()
+        nm = v.get("name","").lower()
+        if any(x in lb for x in ["spanish","espanol","latin"]) and \
+           any(x in lb for x in ["male","news","commercial","dynamic"]):
+            found = v; break
+    if not found:
         for v in voices:
-            if "female" in str(v.get("labels", {})).lower():
-                voice_id = v["voice_id"]; break
-    print("  Voice: " + voice_id + " (" + str(len(voices)) + " disponibles)")
+            lb = str(v.get("labels", {})).lower()
+            if any(x in lb for x in ["spanish","espanol","latin"]):
+                found = v; break
+    if not found:
+        for v in voices:
+            lb = str(v.get("labels", {})).lower()
+            if "male" in lb and "female" not in lb:
+                found = v; break
+    if found:
+        voice_id = found["voice_id"]
+        print("  Voz seleccionada: " + found.get("name","?") + " (" + voice_id[:8] + "...)")
+    else:
+        print("  Usando voz default: Adam (" + voice_id[:8] + "...)")
 except Exception as e:
-    print("  Voz fallback: " + voice_id + " (" + str(e) + ")")
+    print("  API error, usando default: " + str(e))
 
-# Probar modelos de menor a mayor costo
-MODELS = [
-    "eleven_flash_v2_5",   # mas barato y rapido
-    "eleven_turbo_v2_5",
-    "eleven_turbo_v2",
-    "eleven_multilingual_v2",
-]
+MODELS = ["eleven_flash_v2_5","eleven_turbo_v2_5","eleven_turbo_v2","eleven_multilingual_v2"]
 
 def gen_voz(texto, salida, desc):
     for model in MODELS:
         body = json.dumps({
             "text": texto,
             "model_id": model,
-            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+            "voice_settings": {
+                "stability": 0.22,
+                "similarity_boost": 0.85,
+                "style": 0.68,
+                "use_speaker_boost": True
+            }
         })
-        payload = body.encode("utf-8")
         req = Request(
             BASE + "/v1/text-to-speech/" + voice_id,
-            data=payload,
+            data=body.encode("utf-8"),
             headers={"xi-api-key": API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"}
         )
         try:
             r = urlopen(req, timeout=45)
             data = r.read()
             if len(data) > 1000:
-                with open(salida, "wb") as f:
-                    f.write(data)
+                f = open(salida, "wb"); f.write(data); f.close()
                 print("  OK " + desc + " [" + model + "] (" + str(len(data)//1024) + "KB)")
                 return True
         except HTTPError as e:
             if e.code == 402:
-                print("  402 con " + model + ", probando siguiente...")
+                print("  402 " + model + " — probando siguiente...")
                 continue
-            print("  HTTP " + str(e.code) + " en " + desc)
-            return False
+            print("  HTTP " + str(e.code) + " en " + desc); return False
         except Exception as e:
-            print("  Error: " + str(e))
-            return False
+            print("  Error: " + str(e)); return False
     print("  Sin creditos ElevenLabs para " + desc)
     return False
 
+# Texto mas energico y directo — solo voz 1 y voz 2
 textos = [
-    ("Te suena familiar? Pacientes perdidos. Agenda caotica. Noches sin dormir. Marli Agency lo cambia todo.", "voz1.mp3", "Clip 1"),
-    ("Marli Agency. Inteligencia artificial para psicologos. Tu consulta, perfectamente organizada.", "voz2.mp3", "Clip 2"),
-    ("Soy psicologa y Marli Agency cambio todo. Agenda automatica. Pacientes atendidos. Yo, tranquila.", "voz3.mp3", "UGC 1"),
-    ("Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Empieza gratis en marliagency punto com.", "voz4.mp3", "UGC 2"),
+    ("Agenda caotica. Pacientes perdidos. BASTA. Marli Agency lo cambia todo.", "voz1.mp3", "Clip 1"),
+    ("Marli Agency. Inteligencia artificial para psicologos. Tu consulta. Perfectamente transformada.", "voz2.mp3", "Clip 2"),
 ]
-
 ok = sum(1 for t, s, d in textos if gen_voz(t, s, d))
-print("\n  " + str(ok) + "/4 voces ElevenLabs OK")
+print("\n  " + str(ok) + "/2 voces ElevenLabs OK")
 PYEOF
 
-# Fallback con "say" (TTS nativo de Mac — mucho mejor que espeak)
-# Detectar voz española disponible en el sistema
-VOZ_ES=$(say -v '?' 2>/dev/null | grep -iE "es_|Monica|Paulina|Jorge|Spanish" | head -1 | awk '{print $1}')
-[ -z "$VOZ_ES" ] && VOZ_ES="Paulina"  # default español México
+# Fallback say — preferir voz masculina espanola (mas comercial/dinamica)
+VOZ_ES=$(say -v '?' 2>/dev/null | grep -iE "\bJorge\b|\bDiego\b" | head -1 | awk '{print $1}')
+[ -z "$VOZ_ES" ] && VOZ_ES=$(say -v '?' 2>/dev/null | grep -iE "es_|Monica|Paulina|Spanish" | head -1 | awk '{print $1}')
+[ -z "$VOZ_ES" ] && VOZ_ES="Jorge"
 
-for i in 1 2 3 4; do
+for i in 1 2; do
   SZ=$(stat -f%z "voz${i}.mp3" 2>/dev/null || stat -c%s "voz${i}.mp3" 2>/dev/null || echo 0)
   if [ ! -f "voz${i}.mp3" ] || [ "$SZ" -lt 1000 ]; then
-    echo -e "  Usando 'say' (Mac TTS) para voz$i con voz $VOZ_ES..."
+    echo -e "  say ($VOZ_ES) para voz${i}..."
     case $i in
-      1) TEXTO="Te suena familiar? Pacientes perdidos. Agenda caotica. Noches sin dormir. Marli Agency lo cambia todo." ;;
-      2) TEXTO="Marli Agency. Inteligencia artificial para psicologos. Tu consulta, perfectamente organizada." ;;
-      3) TEXTO="Soy psicologa y Marli Agency cambio todo. Agenda automatica. Pacientes atendidos. Yo, tranquila." ;;
-      4) TEXTO="Agenda automatica. Recordatorios inteligentes. Seguimiento personalizado. Empieza gratis en marliagency punto com." ;;
+      1) TX="Agenda caotica. Pacientes perdidos. BASTA. Marli Agency lo cambia todo." ;;
+      2) TX="Marli Agency. Inteligencia artificial para psicologos. Tu consulta. Perfectamente transformada." ;;
     esac
-    say -v "$VOZ_ES" -r 155 "$TEXTO" -o "voz${i}_raw.aiff" 2>/dev/null && \
+    say -v "$VOZ_ES" -r 188 "$TX" -o "voz${i}_raw.aiff" 2>/dev/null && \
       "$FF" -y -i "voz${i}_raw.aiff" -ar 44100 -ac 1 "voz${i}.mp3" -loglevel error < /dev/null && \
       rm -f "voz${i}_raw.aiff" && \
-      echo -e "  ${GREEN}✓${NC} voz${i} generada con say ($VOZ_ES)" || \
-      echo -e "  ${RED}✗${NC} Error generando voz${i}"
+      echo -e "  ${GREEN}✓${NC} voz${i} ($VOZ_ES, 188 wpm)" || \
+      echo -e "  ${RED}✗${NC} Error voz${i}"
   fi
 done
 
-# Convertir MP3 a WAV
-for i in 1 2 3 4; do
+# WAV solo para voz1 y voz2
+for i in 1 2; do
   "$FF" -y -i "voz${i}.mp3" -ar 44100 -ac 1 "voz${i}.wav" -loglevel error < /dev/null 2>/dev/null && \
-    echo -e "  ${GREEN}✓${NC} voz${i}.wav lista" || echo -e "  ${RED}✗${NC} voz${i}.mp3 faltante"
+    echo -e "  ${GREEN}✓${NC} voz${i}.wav" || echo -e "  ${RED}✗${NC} voz${i}.mp3 no encontrado"
 done
 
-# ── 4. MÚSICA CINEMATOGRÁFICA (ffmpeg nativo, sin Python/numpy) ───────────────
-echo -e "\n[4/6] ${BOLD}Generando música cinematográfica...${NC}"
+# ── 4. MUSICA DINAMICA (Am-F-C-G + tremolo ritmico) ──────────────────────────
+echo -e "\n[4/6] ${BOLD}Generando musica dinamica...${NC}"
 
-# Progresion Am-F-C-G con cuatro segmentos concatenados via ffmpeg aevalsrc
-# Am (0-15s): A110+A220+C261.6+E329.6
-# F  (15-30s): F87.3+F174.6+A220+C261.6
-# C  (30-40s): C130.8+E164.8+G196+C261.6
-# Gm (40-55s): G98+D146.8+G196+B246.9
+# Tremolo a ~118 BPM:  f=2 = corcheas suaves | f=4 = semicorcheas energicas
+# Clip 1 (Am, 0-15s):  tremolo=f=2:d=0.25 — construccion moderada
+# Clip 2 (F, 15-30s):  tremolo=f=4:d=0.42 — maximo ritmo / energia
+# UGC 1 (C, 30-40s):   tremolo=f=1.5:d=0.15 — emocional / bajo volumen en mix
+# UGC 2 (G, 40-55s):   tremolo=f=4:d=0.48 — climax energico + fade out
 
-"$FF" -y -f lavfi \
-  -i "aevalsrc=sin(2*PI*110*t)*0.28+sin(2*PI*220*t)*0.22+sin(2*PI*261.6*t)*0.18+sin(2*PI*329.6*t)*0.14+sin(2*PI*220*t*1.002)*0.08:s=44100:d=15" \
-  -f lavfi \
-  -i "aevalsrc=sin(2*PI*87.3*t)*0.28+sin(2*PI*174.6*t)*0.22+sin(2*PI*220*t)*0.18+sin(2*PI*261.6*t)*0.14+sin(2*PI*174.6*t*1.002)*0.08:s=44100:d=15" \
-  -f lavfi \
-  -i "aevalsrc=sin(2*PI*130.8*t)*0.28+sin(2*PI*164.8*t)*0.22+sin(2*PI*196*t)*0.18+sin(2*PI*261.6*t)*0.14+sin(2*PI*130.8*t*1.002)*0.08:s=44100:d=10" \
-  -f lavfi \
-  -i "aevalsrc=sin(2*PI*98*t)*0.28+sin(2*PI*146.8*t)*0.22+sin(2*PI*196*t)*0.18+sin(2*PI*246.9*t)*0.14+sin(2*PI*98*t*1.002)*0.08:s=44100:d=15" \
+"$FF" -y \
+  -f lavfi -i "aevalsrc=sin(2*PI*110*t)*0.25+sin(2*PI*220*t)*0.20+sin(2*PI*261.6*t)*0.17+sin(2*PI*329.6*t)*0.13+sin(2*PI*440*t)*0.08+sin(2*PI*220.6*t)*0.07:s=44100:d=15" \
+  -f lavfi -i "aevalsrc=sin(2*PI*87.3*t)*0.25+sin(2*PI*174.6*t)*0.22+sin(2*PI*220*t)*0.16+sin(2*PI*261.6*t)*0.13+sin(2*PI*349.2*t)*0.09+sin(2*PI*175.2*t)*0.07:s=44100:d=15" \
+  -f lavfi -i "aevalsrc=sin(2*PI*130.8*t)*0.25+sin(2*PI*164.8*t)*0.20+sin(2*PI*196*t)*0.16+sin(2*PI*261.6*t)*0.13+sin(2*PI*392*t)*0.07+sin(2*PI*131.2*t)*0.06:s=44100:d=10" \
+  -f lavfi -i "aevalsrc=sin(2*PI*98*t)*0.28+sin(2*PI*146.8*t)*0.22+sin(2*PI*196*t)*0.17+sin(2*PI*246.9*t)*0.13+sin(2*PI*392*t)*0.08+sin(2*PI*98.5*t)*0.06:s=44100:d=15" \
   -filter_complex \
-    "[0]afade=t=in:st=0:d=2[a0];
-     [1]afade=t=in:st=0:d=0.3[a1];
-     [2]afade=t=in:st=0:d=0.3[a2];
-     [3]afade=t=in:st=0:d=0.3,afade=t=out:st=12:d=3[a3];
-     [a0][a1][a2][a3]concat=n=4:v=0:a=1,volume=0.75[aout]" \
+    "[0]afade=t=in:st=0:d=2,tremolo=f=2:d=0.25[a0];
+     [1]tremolo=f=4:d=0.42,afade=t=in:st=0:d=0.4[a1];
+     [2]tremolo=f=1.5:d=0.15,afade=t=in:st=0:d=0.4[a2];
+     [3]tremolo=f=4:d=0.48,afade=t=in:st=0:d=0.4,afade=t=out:st=12:d=3[a3];
+     [a0][a1][a2][a3]concat=n=4:v=0:a=1,volume=0.80[aout]" \
   -map "[aout]" music.wav -loglevel error < /dev/null
 
-echo -e "  ${GREEN}✓${NC} Música generada (Am-F-C-G cinematic, 55s)"
+echo -e "  ${GREEN}✓${NC} Musica Am-F-C-G con tremolo ritmico (55s)"
 
-# ── 5. TEXTO CINEMATOGRÁFICO + MEZCLA AUDIO ───────────────────────────────────
-echo -e "\n[5/6] ${BOLD}Añadiendo texto y mezclando audio...${NC}"
+# ── 5. TEXTO APPLE/INSTAGRAM + MEZCLA AUDIO ──────────────────────────────────
+echo -e "\n[5/6] ${BOLD}Aplicando texto estilo Apple/Reels...${NC}"
 
-FONT="/System/Library/Fonts/Supplemental/Arial Bold.ttf"
-[ ! -f "$FONT" ] && FONT="/System/Library/Fonts/Helvetica.ttc"
-[ ! -f "$FONT" ] && FONT="/System/Library/Fonts/Arial.ttf"
+# Fuente: Helvetica Neue Bold (apple-like) — viene en macOS desde siempre
+# Arial Bold como fallback
+FONT_NAME="Helvetica Neue Bold"
+# Verificar que fontconfig la encuentre; si no, usar Arial Bold
+if ! fc-list 2>/dev/null | grep -qi "helvetica neue"; then
+  FONT_NAME="Arial Bold"
+fi
 
-# Función fade para alpha de texto
-fade() { echo "if(lt(t,$1),0,if(lt(t,$1+0.5),(t-$1)/0.5,if(lt(t,$2-0.4),1,if(lt(t,$2),($2-t)/0.4,0))))"; }
+# Fade suave 0.4s in, 0.35s out (mas rapido = mas dinamico)
+fade() { echo "if(lt(t,$1),0,if(lt(t,$1+0.4),(t-$1)/0.4,if(lt(t,$2-0.35),1,if(lt(t,$2),($2-t)/0.35,0))))"; }
 
-mix_and_text() {
+# CLIP 1 y 2: voiceover + musica al 28%
+# Audio clip original muy bajo (0.18) para presencia ambiental
+mix_cinematic() {
   local clip="$1" voz_wav="$2" out="$3" t_mus_start="$4" t_mus_end="$5"
-  shift 5
-  local vf_filter="$@"
-
+  shift 5; local vf="$@"
   "$FF" -y -i "$clip" -i "$voz_wav" -i music.wav \
     -filter_complex "
-      [0:a]volume=0.3[va];
+      [0:a]volume=0.18[va];
       [1:a]volume=1.0[vv];
-      [2]atrim=${t_mus_start}:${t_mus_end},aresample=44100,volume=0.35[vm];
-      [va][vv][vm]amix=inputs=3:duration=first:weights='0.3 1.0 0.35'[aout]
+      [2]atrim=${t_mus_start}:${t_mus_end},aresample=44100,volume=0.28[vm];
+      [va][vv][vm]amix=inputs=3:duration=first:weights='0.18 1.0 0.28'[aout]
     " \
-    -map "0:v" -map "[aout]" \
-    -vf "$vf_filter" \
-    -c:v libx264 -crf 16 -preset fast \
-    -c:a aac -b:a 192k \
+    -map "0:v" -map "[aout]" -vf "$vf" \
+    -c:v libx264 -crf 16 -preset fast -c:a aac -b:a 192k \
     "$out" -loglevel error < /dev/null
 }
 
-# CLIP 1: Psicóloga agotada → robot aparece
-A1=$(fade 0.4 4.0); A2=$(fade 4.5 8.5); A3=$(fade 9.0 13.5); A4=$(fade 9.3 13.5)
-mix_and_text clip1.mp4 voz1.wav clip1_final.mp4 0 15 \
-  "drawtext=text='¿Te suena familiar?':font='Arial Bold':fontsize=58:fontcolor=white:shadowcolor=black@0.75:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h*0.12:alpha='${A1}':enable='between(t,0.4,4)',
-  drawtext=text='Agenda caótica.':font='Arial':fontsize=42:fontcolor=white@0.9:shadowcolor=black@0.6:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h*0.86:alpha='${A2}':enable='between(t,4.5,8.5)',
-  drawtext=text='MARLI':font='Arial Bold':fontsize=96:fontcolor=white:shadowcolor=#E24B4A@0.9:shadowx=4:shadowy=4:x=(w-text_w)/2:y=h*0.40:alpha='${A3}':enable='between(t,9,13.5)',
-  drawtext=text='AGENCY':font='Arial Bold':fontsize=96:fontcolor=#E24B4A:shadowcolor=black@0.8:shadowx=3:shadowy=3:x=(w-text_w)/2:y=h*0.52:alpha='${A4}':enable='between(t,9.3,13.5)'"
-echo -e "  ${GREEN}✓${NC} Clip 1 con voz y texto"
+# UGC 1 y 2: audio del hablante limpio + musica muy baja (0.08)
+# Sin voiceover — la persona en el clip ES el audio principal
+mix_ugc() {
+  local clip="$1" out="$2" t_mus_start="$3" t_mus_end="$4"
+  shift 4; local vf="$@"
+  "$FF" -y -i "$clip" -i music.wav \
+    -filter_complex "
+      [0:a]volume=1.15[va];
+      [1]atrim=${t_mus_start}:${t_mus_end},aresample=44100,volume=0.08[vm];
+      [va][vm]amix=inputs=2:duration=first:weights='1.15 0.08'[aout]
+    " \
+    -map "0:v" -map "[aout]" -vf "$vf" \
+    -c:v libx264 -crf 16 -preset fast -c:a aac -b:a 192k \
+    "$out" -loglevel error < /dev/null
+}
 
-# CLIP 2: Sesión tranquila → robot hero → CTA
-B1=$(fade 0.5 5.5); B2=$(fade 6.0 10.0); B3=$(fade 6.3 10.0); B4=$(fade 10.5 14.5); B5=$(fade 10.8 14.5)
-mix_and_text clip2.mp4 voz2.wav clip2_final.mp4 15 30 \
-  "drawtext=text='Tu consulta,':font='Arial Bold':fontsize=60:fontcolor=white:shadowcolor=black@0.8:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h*0.82:alpha='${B1}':enable='between(t,0.5,5.5)',
-  drawtext=text='perfectamente organizada.':font='Arial':fontsize=40:fontcolor=white@0.9:x=(w-text_w)/2:y=h*0.90:alpha='${B1}':enable='between(t,0.5,5.5)',
-  drawtext=text='MARLI AGENCY':font='Arial Bold':fontsize=82:fontcolor=white:shadowcolor=black@0.9:shadowx=4:shadowy=4:x=(w-text_w)/2:y=h*0.36:alpha='${B2}':enable='between(t,6,10)',
-  drawtext=text='IA para Psicólogos':font='Arial':fontsize=48:fontcolor=#FFCFC5:shadowcolor=black@0.6:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h*0.47:alpha='${B3}':enable='between(t,6.3,10)',
-  drawtext=text='marliagency.com':font='Arial Bold':fontsize=74:fontcolor=white:shadowcolor=#E24B4A@0.9:shadowx=3:shadowy=3:x=(w-text_w)/2:y=(h-text_h)/2:alpha='${B4}':enable='between(t,10.5,14.5)',
-  drawtext=text='Empieza gratis hoy':font='Arial':fontsize=44:fontcolor=#FFCFC5:x=(w-text_w)/2:y=h*0.60:alpha='${B5}':enable='between(t,10.8,14.5)'"
-echo -e "  ${GREEN}✓${NC} Clip 2 con voz y texto"
+# ── CLIP 1: Problema → Reveal de marca ──────────────────────────────────────
+# Texto grande, impacto inmediato estilo Apple
+A1=$(fade 0.3 4.2); A2=$(fade 4.6 8.8); A3=$(fade 9.2 14.2)
+mix_cinematic clip1.mp4 voz1.wav clip1_final.mp4 0 15 \
+  "drawtext=font='${FONT_NAME}':text='AGENDA CAOTICA':fontsize=76:fontcolor=white:borderw=3:bordercolor=black@0.92:x=(w-text_w)/2:y=h*0.40:alpha='${A1}':enable='between(t,0.3,4.2)',
+  drawtext=font='${FONT_NAME}':text='BASTA.':fontsize=104:fontcolor=#E24B4A:borderw=3:bordercolor=black@0.92:x=(w-text_w)/2:y=h*0.50:alpha='${A1}':enable='between(t,0.3,4.2)',
+  drawtext=font='${FONT_NAME}':text='Pacientes perdidos.':fontsize=48:fontcolor=white@0.88:borderw=2:bordercolor=black@0.75:x=(w-text_w)/2:y=h*0.82:alpha='${A2}':enable='between(t,4.6,8.8)',
+  drawtext=font='${FONT_NAME}':text='Noches sin dormir.':fontsize=48:fontcolor=white@0.88:borderw=2:bordercolor=black@0.75:x=(w-text_w)/2:y=h*0.89:alpha='${A2}':enable='between(t,4.6,8.8)',
+  drawtext=font='${FONT_NAME}':text='MARLI AGENCY':fontsize=90:fontcolor=white:borderw=4:bordercolor=black@0.95:x=(w-text_w)/2:y=h*0.38:alpha='${A3}':enable='between(t,9.2,14.2)',
+  drawtext=font='Helvetica Neue':text='lo cambia todo.':fontsize=52:fontcolor=#FFCFC5:borderw=2:bordercolor=black@0.80:x=(w-text_w)/2:y=h*0.53:alpha='${A3}':enable='between(t,9.2,14.2)'"
+echo -e "  ${GREEN}✓${NC} Clip 1"
 
-# UGC 1: Testimonio psicóloga (voz como protagonista)
-C1=$(fade 0.3 4.5); C2=$(fade 5.0 9.0)
-mix_and_text ugc1.mp4 voz3.wav ugc1_final.mp4 30 40 \
-  "drawtext=text='Soy psicóloga...':font='Arial Bold':fontsize=52:fontcolor=white:shadowcolor=black@0.7:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h*0.88:alpha='${C1}':enable='between(t,0.3,4.5)',
-  drawtext=text='Marli Agency lo cambió todo':font='Arial Bold':fontsize=50:fontcolor=#E24B4A:shadowcolor=black@0.8:shadowx=3:shadowy=3:x=(w-text_w)/2:y=h*0.88:alpha='${C2}':enable='between(t,5,9)'"
-echo -e "  ${GREEN}✓${NC} UGC 1 con voz"
+# ── CLIP 2: Beneficio → Marca → CTA ─────────────────────────────────────────
+B1=$(fade 0.4 5.8); B2=$(fade 6.2 10.2); B3=$(fade 10.6 14.6)
+mix_cinematic clip2.mp4 voz2.wav clip2_final.mp4 15 30 \
+  "drawtext=font='Helvetica Neue':text='IA creada para':fontsize=54:fontcolor=white:borderw=2:bordercolor=black@0.82:x=(w-text_w)/2:y=h*0.80:alpha='${B1}':enable='between(t,0.4,5.8)',
+  drawtext=font='${FONT_NAME}':text='PSICOLOGOS':fontsize=82:fontcolor=#E24B4A:borderw=3:bordercolor=black@0.92:x=(w-text_w)/2:y=h*0.87:alpha='${B1}':enable='between(t,0.4,5.8)',
+  drawtext=font='${FONT_NAME}':text='MARLI AGENCY':fontsize=82:fontcolor=white:borderw=4:bordercolor=black@0.95:x=(w-text_w)/2:y=h*0.35:alpha='${B2}':enable='between(t,6.2,10.2)',
+  drawtext=font='Helvetica Neue':text='Tu consulta. Transformada.':fontsize=46:fontcolor=#FFCFC5:borderw=2:bordercolor=black@0.80:x=(w-text_w)/2:y=h*0.46:alpha='${B2}':enable='between(t,6.2,10.2)',
+  drawtext=font='${FONT_NAME}':text='marliagency.com':fontsize=68:fontcolor=white:box=1:boxcolor=#E24B4A@0.93:boxborderw=24:x=(w-text_w)/2:y=h*0.43:alpha='${B3}':enable='between(t,10.6,14.6)',
+  drawtext=font='Helvetica Neue':text='Empieza GRATIS hoy':fontsize=44:fontcolor=white@0.92:borderw=2:bordercolor=#E24B4A@0.70:x=(w-text_w)/2:y=h*0.57:alpha='${B3}':enable='between(t,10.6,14.6)'"
+echo -e "  ${GREEN}✓${NC} Clip 2"
 
-# UGC 2: 3 beneficios → CTA
-D1=$(fade 0.4 4.0); D2=$(fade 4.5 8.5); D3=$(fade 9.0 12.0); D4=$(fade 12.5 14.5)
-mix_and_text ugc2.mp4 voz4.wav ugc2_final.mp4 40 55 \
-  "drawtext=text='✓ Agenda automática':font='Arial Bold':fontsize=50:fontcolor=white:shadowcolor=black@0.7:shadowx=2:shadowy=2:x=w*0.07:y=h*0.55:alpha='${D1}':enable='between(t,0.4,4)',
-  drawtext=text='✓ Recordatorios inteligentes':font='Arial Bold':fontsize=50:fontcolor=white:shadowcolor=black@0.7:shadowx=2:shadowy=2:x=w*0.07:y=h*0.65:alpha='${D1}':enable='between(t,0.4,4)',
-  drawtext=text='✓ Seguimiento personalizado':font='Arial Bold':fontsize=50:fontcolor=white:shadowcolor=black@0.7:shadowx=2:shadowy=2:x=w*0.07:y=h*0.75:alpha='${D1}':enable='between(t,0.4,4)',
-  drawtext=text='marliagency.com':font='Arial Bold':fontsize=80:fontcolor=white:shadowcolor=#E24B4A@0.9:shadowx=4:shadowy=4:x=(w-text_w)/2:y=(h-text_h)/2:alpha='${D3}':enable='between(t,9,12)',
-  drawtext=text='Empieza GRATIS':font='Arial Bold':fontsize=56:fontcolor=#E24B4A:shadowcolor=black@0.8:shadowx=3:shadowy=3:x=(w-text_w)/2:y=h*0.60:alpha='${D4}':enable='between(t,12.5,14.5)'"
-echo -e "  ${GREEN}✓${NC} UGC 2 con voz y CTA"
+# ── UGC 1: Testimonio — audio limpio, musica al fondo ───────────────────────
+# Solo texto de contexto (chyron) y quote final — NO voiceover
+C1=$(fade 0.4 5.0); C2=$(fade 5.4 9.2)
+mix_ugc ugc1.mp4 ugc1_final.mp4 30 40 \
+  "drawtext=font='Helvetica Neue':text='Psicologa clinica':fontsize=36:fontcolor=white:box=1:boxcolor=black@0.60:boxborderw=14:x=w*0.05:y=h*0.88:alpha='${C1}':enable='between(t,0.4,5.0)',
+  drawtext=font='${FONT_NAME}':text='Marli Agency lo cambio todo':fontsize=46:fontcolor=white:borderw=2:bordercolor=#E24B4A@0.92:x=(w-text_w)/2:y=h*0.87:alpha='${C2}':enable='between(t,5.4,9.2)'"
+echo -e "  ${GREEN}✓${NC} UGC 1 — audio original, sin voiceover"
 
-# ── 6. CONCATENAR FINAL ────────────────────────────────────────────────────────
+# ── UGC 2: Beneficios + CTA final ───────────────────────────────────────────
+D1=$(fade 0.3 4.8); D2=$(fade 5.2 9.2); D3=$(fade 9.6 13.2); D4=$(fade 13.5 14.8)
+mix_ugc ugc2.mp4 ugc2_final.mp4 40 55 \
+  "drawtext=font='${FONT_NAME}':text='Agenda automatica':fontsize=50:fontcolor=white:borderw=2:bordercolor=black@0.88:x=w*0.06:y=h*0.50:alpha='${D1}':enable='between(t,0.3,4.8)',
+  drawtext=font='${FONT_NAME}':text='Recordatorios inteligentes':fontsize=50:fontcolor=white:borderw=2:bordercolor=black@0.88:x=w*0.06:y=h*0.60:alpha='${D1}':enable='between(t,0.3,4.8)',
+  drawtext=font='${FONT_NAME}':text='Seguimiento personalizado':fontsize=50:fontcolor=white:borderw=2:bordercolor=black@0.88:x=w*0.06:y=h*0.70:alpha='${D1}':enable='between(t,0.3,4.8)',
+  drawtext=font='${FONT_NAME}':text='TODO incluido':fontsize=68:fontcolor=#E24B4A:borderw=3:bordercolor=black@0.92:x=(w-text_w)/2:y=h*0.42:alpha='${D2}':enable='between(t,5.2,9.2)',
+  drawtext=font='Helvetica Neue':text='desde el Dia 1':fontsize=50:fontcolor=white:borderw=2:bordercolor=black@0.82:x=(w-text_w)/2:y=h*0.52:alpha='${D2}':enable='between(t,5.2,9.2)',
+  drawtext=font='${FONT_NAME}':text='marliagency.com':fontsize=72:fontcolor=white:box=1:boxcolor=#E24B4A@0.94:boxborderw=26:x=(w-text_w)/2:y=h*0.42:alpha='${D3}':enable='between(t,9.6,13.2)',
+  drawtext=font='${FONT_NAME}':text='EMPIEZA GRATIS':fontsize=60:fontcolor=white:borderw=3:bordercolor=black@0.92:x=(w-text_w)/2:y=h*0.56:alpha='${D4}':enable='between(t,13.5,14.8)'"
+echo -e "  ${GREEN}✓${NC} UGC 2 — audio original, sin voiceover"
+
+# ── 6. VIDEO FINAL ────────────────────────────────────────────────────────────
 echo -e "\n[6/6] ${BOLD}Montando video final...${NC}"
-printf "file 'clip1_final.mp4'\nfile 'clip2_final.mp4'\nfile 'ugc1_final.mp4'\nfile 'ugc2_final.mp4'\n" > concat_v2.txt
+printf "file 'clip1_final.mp4'\nfile 'clip2_final.mp4'\nfile 'ugc1_final.mp4'\nfile 'ugc2_final.mp4'\n" > concat_v3.txt
 
-"$FF" -y -f concat -safe 0 -i concat_v2.txt \
-  -c:v libx264 -crf 16 -preset medium \
+"$FF" -y -f concat -safe 0 -i concat_v3.txt \
+  -c:v libx264 -crf 15 -preset medium \
   -pix_fmt yuv420p \
   -c:a aac -b:a 192k \
   -movflags +faststart \
-  Marli_Final_v2_ElevenLabs_55s.mp4 -loglevel error < /dev/null
+  Marli_Final_v3_55s.mp4 -loglevel error < /dev/null
 
-# Limpiar temporales
 rm -f clip1_final.mp4 clip2_final.mp4 ugc1_final.mp4 ugc2_final.mp4 \
-      concat_v2.txt voz1.mp3 voz2.mp3 voz3.mp3 voz4.mp3 \
-      voz1.wav voz2.wav voz3.wav voz4.wav
+      concat_v3.txt voz1.mp3 voz2.mp3 voz1.wav voz2.wav
 
-SIZE=$(du -sh Marli_Final_v2_ElevenLabs_55s.mp4 | cut -f1)
+SIZE=$(du -sh Marli_Final_v3_55s.mp4 | cut -f1)
 echo ""
 echo -e "${GREEN}${BOLD}============================================"
-echo -e "  ✅ LISTO: Marli_Final_v2_ElevenLabs_55s.mp4"
-echo -e "  Tamaño: ${SIZE} | 55s | 1080×1920"
-echo -e "  Voz: ElevenLabs Neural Español"
-echo -e "  Música: Cinematográfica Am-F-C-G"
-echo -e "  4 clips Higgsfield kling3_0 pro"
+echo -e "  LISTO: Marli_Final_v3_55s.mp4"
+echo -e "  Tamano: ${SIZE} | 55s | 1080x1920"
+echo -e "  Voz: ElevenLabs/say (clips 1-2) | Audio original (UGC)"
+echo -e "  Musica: Am-F-C-G tremolo ritmico"
+echo -e "  Texto: Helvetica Neue Bold (Apple-style)"
 echo -e "============================================${NC}"
 echo ""
-echo -e "  📁 Guardado en: $DIR/"
+echo -e "  Guardado en: $DIR/"
 
 open "$DIR"
