@@ -180,221 +180,32 @@ for i in 1 2 3 4; do
     echo -e "  ${GREEN}✓${NC} voz${i}.wav lista" || echo -e "  ${RED}✗${NC} voz${i}.mp3 faltante"
 done
 
-# ── 4. MÚSICA DINÁMICA ────────────────────────────────────────────────────────
+# ── 4. MÚSICA CINEMATOGRÁFICA (ffmpeg nativo, sin Python/numpy) ───────────────
 echo -e "\n[4/6] ${BOLD}Generando música cinematográfica...${NC}"
-$PYTHON << 'PYEOF'
-# -*- coding: utf-8 -*-
-import sys, wave, struct, os, math, random
 
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
+# Progresion Am-F-C-G con cuatro segmentos concatenados via ffmpeg aevalsrc
+# Am (0-15s): A110+A220+C261.6+E329.6
+# F  (15-30s): F87.3+F174.6+A220+C261.6
+# C  (30-40s): C130.8+E164.8+G196+C261.6
+# Gm (40-55s): G98+D146.8+G196+B246.9
 
-# Si no hay numpy, generar tono simple de 55s y salir
-if not HAS_NUMPY:
-    SR = 44100; TOTAL = 55; freq = 220.0
-    samples = []
-    for i in range(int(SR * TOTAL)):
-        t = i / float(SR)
-        # Acorde Am sostenido con fade out final
-        v = 0.25 if t < 52 else 0.25 * (55 - t) / 3.0
-        s = (math.sin(2*math.pi*220*t)*0.5 +
-             math.sin(2*math.pi*330*t)*0.25 +
-             math.sin(2*math.pi*440*t)*0.15 +
-             math.sin(2*math.pi*110*t)*0.10) * v
-        samples.append(int(max(-32767, min(32767, s * 32767))))
-    wf = wave.open('music.wav', 'w')
-    wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
-    import array as arr
-    wf.writeframes(arr.array('h', samples).tostring())
-    wf.close()
-    print("  OK Musica basica lista (sin numpy)")
-    sys.exit(0)
+"$FF" -y -f lavfi \
+  -i "aevalsrc=sin(2*PI*110*t)*0.28+sin(2*PI*220*t)*0.22+sin(2*PI*261.6*t)*0.18+sin(2*PI*329.6*t)*0.14+sin(2*PI*220*t*1.002)*0.08:s=44100:d=15" \
+  -f lavfi \
+  -i "aevalsrc=sin(2*PI*87.3*t)*0.28+sin(2*PI*174.6*t)*0.22+sin(2*PI*220*t)*0.18+sin(2*PI*261.6*t)*0.14+sin(2*PI*174.6*t*1.002)*0.08:s=44100:d=15" \
+  -f lavfi \
+  -i "aevalsrc=sin(2*PI*130.8*t)*0.28+sin(2*PI*164.8*t)*0.22+sin(2*PI*196*t)*0.18+sin(2*PI*261.6*t)*0.14+sin(2*PI*130.8*t*1.002)*0.08:s=44100:d=10" \
+  -f lavfi \
+  -i "aevalsrc=sin(2*PI*98*t)*0.28+sin(2*PI*146.8*t)*0.22+sin(2*PI*196*t)*0.18+sin(2*PI*246.9*t)*0.14+sin(2*PI*98*t*1.002)*0.08:s=44100:d=15" \
+  -filter_complex \
+    "[0]afade=t=in:st=0:d=2[a0];
+     [1]afade=t=in:st=0:d=0.3[a1];
+     [2]afade=t=in:st=0:d=0.3[a2];
+     [3]afade=t=in:st=0:d=0.3,afade=t=out:st=12:d=3[a3];
+     [a0][a1][a2][a3]concat=n=4:v=0:a=1,volume=0.75[aout]" \
+  -map "[aout]" music.wav -loglevel error < /dev/null
 
-SR = 44100
-BPM = 118
-
-def note(freq, dur, vol=0.3, attack=0.03, decay=0.05, sustain=0.7, release=0.15):
-    n = int(SR * dur)
-    t = np.linspace(0, dur, n)
-    # Wave with harmonics for richer sound
-    wave_arr = (np.sin(2*np.pi*freq*t) * 0.6 +
-                np.sin(2*np.pi*freq*2*t) * 0.2 +
-                np.sin(2*np.pi*freq*3*t) * 0.1 +
-                np.sin(2*np.pi*freq*0.5*t) * 0.1)
-    # ADSR envelope
-    env = np.ones(n)
-    a = int(attack * SR); d = int(decay * SR); r = int(release * SR)
-    s_level = sustain
-    if a > 0: env[:a] = np.linspace(0, 1, a)
-    if d > 0 and a+d < n: env[a:a+d] = np.linspace(1, s_level, d)
-    if a+d < n: env[a+d:max(a+d, n-r)] = s_level
-    if r > 0: env[max(0, n-r):] = np.linspace(s_level, 0, min(r, n))
-    return wave_arr * env * vol
-
-def pad_synth(freq, dur, vol=0.2):
-    """Warm pad sound with chorus effect"""
-    n = int(SR * dur)
-    t = np.linspace(0, dur, n)
-    detune = 0.002
-    wave_arr = (np.sin(2*np.pi*freq*(1+detune)*t) * 0.5 +
-                np.sin(2*np.pi*freq*(1-detune)*t) * 0.5 +
-                np.sin(2*np.pi*freq*2*t) * 0.15)
-    env = np.ones(n)
-    fade = int(0.3 * SR)
-    env[:fade] = np.linspace(0, 1, fade)
-    env[-fade:] = np.linspace(1, 0, fade)
-    return wave_arr * env * vol
-
-def bass_note(freq, dur, vol=0.35):
-    n = int(SR * dur)
-    t = np.linspace(0, dur, n)
-    wave_arr = (np.sin(2*np.pi*freq*t) * 0.7 +
-                np.sin(2*np.pi*freq*2*t) * 0.2 +
-                np.sin(2*np.pi*freq*0.5*t) * 0.1)
-    env = np.ones(n)
-    decay = int(0.1 * SR); release = int(0.2 * SR)
-    env[:decay] = np.linspace(0, 1, decay)
-    env[-release:] = np.linspace(1, 0, release)
-    return wave_arr * env * vol
-
-def kick(dur=0.4, vol=0.6):
-    n = int(SR * dur)
-    t = np.linspace(0, dur, n)
-    freq_sweep = 150 * np.exp(-20 * t)
-    wave_arr = np.sin(2 * np.pi * np.cumsum(freq_sweep) / SR)
-    env = np.exp(-8 * t)
-    noise = np.random.randn(n) * 0.05 * np.exp(-30 * t)
-    return (wave_arr * env + noise) * vol
-
-def snare(dur=0.2, vol=0.4):
-    n = int(SR * dur)
-    t = np.linspace(0, dur, n)
-    noise = np.random.randn(n)
-    tone = np.sin(2 * np.pi * 200 * t)
-    env = np.exp(-15 * t)
-    return (noise * 0.7 + tone * 0.3) * env * vol
-
-def hihat(dur=0.08, vol=0.15):
-    n = int(SR * dur)
-    noise = np.random.randn(n)
-    env = np.exp(-40 * np.linspace(0, dur, n))
-    return noise * env * vol
-
-# Notes: Am - F - C - G (cinematic progression)
-NOTES = {
-    'A3':220.0,'C4':261.6,'E4':329.6,'F3':174.6,'A4':440.0,
-    'C5':523.3,'E5':659.3,'G3':196.0,'B3':246.9,'D4':293.7,
-    'G4':392.0,'D5':587.3,'F4':349.2,'B4':493.9,'A2':110.0,
-    'F2':87.3,'C3':130.8,'G2':98.0
-}
-
-BEAT = 60.0 / BPM
-TOTAL = 55.0
-full = np.zeros(int(SR * TOTAL))
-
-def add(arr, sig, t_start):
-    start = int(t_start * SR)
-    end = start + len(sig)
-    if end > len(arr): sig = sig[:len(arr)-start]
-    arr[start:start+len(sig)] += sig
-
-# ---- ESTRUCTURA MUSICAL -------------------------------------------------
-# INTRO (0-4s): fade in suave
-for t in np.arange(0, 4, BEAT*4):
-    add(full, pad_synth(NOTES['A3'], BEAT*4, 0.15), t)
-    add(full, pad_synth(NOTES['E4'], BEAT*4, 0.10), t)
-
-# CLIP 1 (0-15s): tension + construccion
-chord_seq1 = [
-    ('A3','C4','E4'),('F3','A3','C4'),('C3','E4','G4'),('G2','B3','D4')
-]
-for i, (t) in enumerate(np.arange(0, 15, BEAT*4)):
-    chord = chord_seq1[i % len(chord_seq1)]
-    for n in chord:
-        add(full, note(NOTES[n], BEAT*4, 0.12), t)
-    add(full, pad_synth(NOTES[chord[0]], BEAT*4, 0.08), t)
-    # Bajo
-    add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.25), t)
-    add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.20), t + BEAT*2)
-
-# Percusion clip 1 (aparece progresivamente a partir de 5s)
-for i, t in enumerate(np.arange(5, 15, BEAT)):
-    if i % 4 == 0: add(full, kick(vol=0.5), t)
-    if i % 4 == 2: add(full, snare(vol=0.3 + (t/15)*0.15), t)
-    if i % 2 == 1: add(full, hihat(vol=0.12 + (t/15)*0.05), t)
-
-# CLIP 2 (15-30s): elevacion, mas energia
-chord_seq2 = [
-    ('A3','E4','A4'),('F3','C4','F4'),('C3','G4','C5'),('G2','D4','G4')
-]
-for i, t in enumerate(np.arange(15, 30, BEAT*4)):
-    chord = chord_seq2[i % len(chord_seq2)]
-    for n in chord:
-        add(full, note(NOTES[n], BEAT*4, 0.14), t)
-        add(full, pad_synth(NOTES[n], BEAT*4, 0.06), t)
-    add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.30), t)
-    add(full, bass_note(NOTES[chord[2]]/4, BEAT*2, 0.25), t + BEAT*2)
-
-# Percusion clip 2 (completa, mas energia)
-for t in np.arange(15, 30, BEAT):
-    beat_in_measure = (t - 15) / BEAT % 4
-    if beat_in_measure < 0.1: add(full, kick(vol=0.65), t)
-    if abs(beat_in_measure - 2) < 0.1: add(full, snare(vol=0.50), t)
-    add(full, hihat(vol=0.18), t)
-    if abs(beat_in_measure - 1) < 0.1 or abs(beat_in_measure - 3) < 0.1:
-        add(full, hihat(dur=0.04, vol=0.10), t)
-
-# UGC 1 (30-40s): mas suave, emocional
-for i, t in enumerate(np.arange(30, 40, BEAT*4)):
-    chord = chord_seq1[i % len(chord_seq1)]
-    for n in chord:
-        add(full, pad_synth(NOTES[n], BEAT*4, 0.10), t)
-    add(full, bass_note(NOTES[chord[0]]/2, BEAT*4, 0.20), t)
-
-for t in np.arange(30, 40, BEAT*2):
-    add(full, kick(vol=0.35), t)
-    add(full, snare(vol=0.25), t + BEAT)
-    add(full, hihat(vol=0.12), t + BEAT*0.5)
-
-# UGC 2 (40-55s): climax + fade out final
-for i, t in enumerate(np.arange(40, 53, BEAT*4)):
-    chord = chord_seq2[i % len(chord_seq2)]
-    for n in chord:
-        add(full, note(NOTES[n], BEAT*4, 0.13), t)
-        add(full, pad_synth(NOTES[n], BEAT*4, 0.08), t)
-    add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.28), t)
-
-for t in np.arange(40, 53, BEAT):
-    beat_in_measure = (t - 40) / BEAT % 4
-    if beat_in_measure < 0.1: add(full, kick(vol=0.60), t)
-    if abs(beat_in_measure - 2) < 0.1: add(full, snare(vol=0.45), t)
-    add(full, hihat(vol=0.15), t)
-
-# Fade out final (52-55s)
-fade_len = int(3 * SR)
-fade_start = int(52 * SR)
-fade_end = min(len(full), fade_start + fade_len)
-full[fade_start:fade_end] *= np.linspace(1, 0, fade_end - fade_start)
-
-# Normalizar
-max_val = np.max(np.abs(full))
-if max_val > 0:
-    full = full / max_val * 0.82
-
-# Guardar WAV
-samples = (full * 32767).astype(np.int16)
-wf = wave.open('music.wav', 'w')
-wf.setnchannels(1)
-wf.setsampwidth(2)
-wf.setframerate(SR)
-wf.writeframes(samples.tostring())
-wf.close()
-print("  OK Musica cinematografica lista (55s)")
-PYEOF
-echo -e "  ${GREEN}✓${NC} Música generada"
+echo -e "  ${GREEN}✓${NC} Música generada (Am-F-C-G cinematic, 55s)"
 
 # ── 5. TEXTO CINEMATOGRÁFICO + MEZCLA AUDIO ───────────────────────────────────
 echo -e "\n[5/6] ${BOLD}Añadiendo texto y mezclando audio...${NC}"
