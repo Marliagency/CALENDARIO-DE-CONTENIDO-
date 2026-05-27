@@ -13,3 +13,5 @@ docx_x/
 mascot/
 # NOTA: card_problem.mp4, card_benefit.mp4, card_cta.mp4 y music.wav SI se commitean
 # (el script de montaje del Mac los reutiliza).
+fonttest_*.png
+music_sample.mp4
