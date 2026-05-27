@@ -183,7 +183,33 @@ done
 # ── 4. MÚSICA DINÁMICA ────────────────────────────────────────────────────────
 echo -e "\n[4/6] ${BOLD}Generando música cinematográfica...${NC}"
 $PYTHON << 'PYEOF'
-import numpy as np, wave, struct
+# -*- coding: utf-8 -*-
+import sys, wave, struct, os, math, random
+
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+
+# Si no hay numpy, generar tono simple de 55s y salir
+if not HAS_NUMPY:
+    SR = 44100; TOTAL = 55; freq = 220.0
+    samples = []
+    for i in range(int(SR * TOTAL)):
+        t = i / float(SR)
+        # Acorde Am sostenido con fade out final
+        v = 0.25 if t < 52 else 0.25 * (55 - t) / 3.0
+        s = (math.sin(2*math.pi*220*t)*0.5 +
+             math.sin(2*math.pi*330*t)*0.25 +
+             math.sin(2*math.pi*440*t)*0.15 +
+             math.sin(2*math.pi*110*t)*0.10) * v
+        samples.append(int(max(-32767, min(32767, s * 32767))))
+    with wave.open('music.wav', 'w') as wf:
+        wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
+        wf.writeframes(struct.pack('<' + 'h'*len(samples), *samples))
+    print("  OK Musica basica lista (sin numpy)")
+    sys.exit(0)
 
 SR = 44100
 BPM = 118
@@ -273,7 +299,7 @@ def add(arr, sig, t_start):
     if end > len(arr): sig = sig[:len(arr)-start]
     arr[start:start+len(sig)] += sig
 
-# ── ESTRUCTURA MUSICAL ─────────────────────────────────────────────────────────
+# ---- ESTRUCTURA MUSICAL -------------------------------------------------
 # INTRO (0-4s): fade in suave
 for t in np.arange(0, 4, BEAT*4):
     add(full, pad_synth(NOTES['A3'], BEAT*4, 0.15), t)
@@ -363,7 +389,7 @@ with wave.open('music.wav', 'w') as wf:
     wf.setsampwidth(2)
     wf.setframerate(SR)
     wf.writeframes(samples.tobytes())
-print("  ✓ Música cinematográfica lista (55s)")
+print("  OK Musica cinematografica lista (55s)")
 PYEOF
 echo -e "  ${GREEN}✓${NC} Música generada"
 
