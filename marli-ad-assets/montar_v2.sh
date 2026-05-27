@@ -305,7 +305,7 @@ for t in np.arange(0, 4, BEAT*4):
     add(full, pad_synth(NOTES['A3'], BEAT*4, 0.15), t)
     add(full, pad_synth(NOTES['E4'], BEAT*4, 0.10), t)
 
-# CLIP 1 (0-15s): tensión + construcción
+# CLIP 1 (0-15s): tension + construccion
 chord_seq1 = [
     ('A3','C4','E4'),('F3','A3','C4'),('C3','E4','G4'),('G2','B3','D4')
 ]
@@ -318,13 +318,13 @@ for i, (t) in enumerate(np.arange(0, 15, BEAT*4)):
     add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.25), t)
     add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.20), t + BEAT*2)
 
-# Percusión clip 1 (aparece progresivamente a partir de 5s)
+# Percusion clip 1 (aparece progresivamente a partir de 5s)
 for i, t in enumerate(np.arange(5, 15, BEAT)):
     if i % 4 == 0: add(full, kick(vol=0.5), t)
     if i % 4 == 2: add(full, snare(vol=0.3 + (t/15)*0.15), t)
     if i % 2 == 1: add(full, hihat(vol=0.12 + (t/15)*0.05), t)
 
-# CLIP 2 (15-30s): elevación, más energía
+# CLIP 2 (15-30s): elevacion, mas energia
 chord_seq2 = [
     ('A3','E4','A4'),('F3','C4','F4'),('C3','G4','C5'),('G2','D4','G4')
 ]
@@ -336,7 +336,7 @@ for i, t in enumerate(np.arange(15, 30, BEAT*4)):
     add(full, bass_note(NOTES[chord[0]]/2, BEAT*2, 0.30), t)
     add(full, bass_note(NOTES[chord[2]]/4, BEAT*2, 0.25), t + BEAT*2)
 
-# Percusión clip 2 (completa, más energía)
+# Percusion clip 2 (completa, mas energia)
 for t in np.arange(15, 30, BEAT):
     beat_in_measure = (t - 15) / BEAT % 4
     if beat_in_measure < 0.1: add(full, kick(vol=0.65), t)
@@ -345,7 +345,7 @@ for t in np.arange(15, 30, BEAT):
     if abs(beat_in_measure - 1) < 0.1 or abs(beat_in_measure - 3) < 0.1:
         add(full, hihat(dur=0.04, vol=0.10), t)
 
-# UGC 1 (30-40s): más suave, emocional
+# UGC 1 (30-40s): mas suave, emocional
 for i, t in enumerate(np.arange(30, 40, BEAT*4)):
     chord = chord_seq1[i % len(chord_seq1)]
     for n in chord:
