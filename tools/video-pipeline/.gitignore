@@ -1,0 +1,12 @@
+# Salida de cada lote (videos generados + reporte)
+outputs/
+
+# Prompts expandidos de cada lote (se regeneran por brief)
+batch_prompts.json
+
+# Workflow exportado de ComfyUI (específico de tu instalación, puede pesar)
+wan_workflow.json
+
+# Cache de Python
+__pycache__/
+*.pyc
