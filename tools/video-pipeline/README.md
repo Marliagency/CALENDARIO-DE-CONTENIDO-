@@ -85,6 +85,10 @@ Claude Code: expande el brief a `batch_prompts.json`, arranca el pod (`start`),
 espera a ComfyUI, ejecuta el script, descarga los `.mp4` a `./outputs/`, apaga el
 pod (`stop`) y entrega el reporte (nº de videos, tiempo, coste estimado).
 
+Formato de los prompts: ver `batch_prompts.example.json` (3 prompts de muestra).
+Cópialo a `batch_prompts.json` para un lote manual, o deja que Claude Code lo
+genere desde tu brief. Cada item: `id`, `prompt`, `duracion`, `formato`.
+
 Invocación manual del script:
 
 ```bash

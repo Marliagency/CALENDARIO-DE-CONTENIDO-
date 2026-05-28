@@ -1,0 +1,20 @@
+[
+  {
+    "id": "v01",
+    "prompt": "Un vaso de cafe con leche humeante sobre una mesa de madera clara, el vapor sube lentamente, cafeteria minimalista al fondo desenfocada, estilo cinematografico calido, plano cenital ligeramente inclinado, luz de manana suave entrando por una ventana lateral, 9:16",
+    "duracion": 5,
+    "formato": "9:16"
+  },
+  {
+    "id": "v02",
+    "prompt": "Manos de barista vertiendo arte latte en una taza blanca, primer plano macro del chorro de leche formando una hoja, mostrador de marmol, estilo cinematografico calido, camara fija con poca profundidad de campo, luz lateral dorada, 9:16",
+    "duracion": 5,
+    "formato": "9:16"
+  },
+  {
+    "id": "v03",
+    "prompt": "Granos de cafe tostado cayendo en camara lenta sobre una superficie oscura, particulas de polvo flotando, fondo negro, estilo cinematografico de alto contraste, plano detalle, iluminacion dramatica de un solo foco, 9:16",
+    "duracion": 5,
+    "formato": "9:16"
+  }
+]
