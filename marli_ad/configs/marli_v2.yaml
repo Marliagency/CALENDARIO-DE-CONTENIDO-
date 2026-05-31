@@ -1,0 +1,109 @@
+# Anuncio Marli v2 — config de produccion
+# Lee PRODUCTION.md para entender los presets de estilo / camara / timing.
+ad:
+  name: marli_v2
+  music: ../music.wav
+  fonts:
+    headline: ../fonts/DMSerifDisplay-Regular.ttf
+    body:     ../fonts/SpaceGrotesk.ttf
+  brand:
+    red:   "0xE24B4A"
+    ink:   "0x2C2C2C"
+    cream: "0xFAF6F1"
+    grey:  "0x6B6B6B"
+
+defaults:
+  style: editorial
+  fps: 24
+  resolution: 1080x1920
+
+beats:
+  - id: hook
+    type: CINEMATIC
+    duration: 5
+    camera: slow-push-in
+    seed: 42
+    prompt: >
+      small friendly geometric red robot mascot with glossy carbon-fiber body and white
+      articulated joints, calm soft smiley screen face, sitting on a wooden desk in a
+      minimalist cream psychology consultation room, warm natural window light
+    overlay:
+      scrim: bottom-40
+      lines:
+        - {text: "Tu consulta funciona.",        font: body,     size: 56, color: white, t_in: 0.4,  y: 1340}
+        - {text: "Pero depende solo de ti.",     font: headline, size: 56, color: red,   t_in: 0.95, y: 1430}
+
+  - id: problem
+    type: TEXT_CARD
+    duration: 5
+    background:
+      prompt: >
+        empty minimalist cream psychology office at dawn, soft natural window light,
+        papers softly on the desk, premium editorial photo
+      seed: 7
+    kicker:  "EL PROBLEMA"
+    headline: "+8 HORAS"
+    subhead: "a la semana en tareas administrativas"
+
+  - id: testimonial
+    type: UGC
+    duration: 5
+    camera: handheld
+    seed: random
+    prompt: >
+      warm female therapist in her 30s in a cream consultation room with soft window
+      light, looking calmly into the phone camera with a relieved expression
+    audio:
+      source: tts
+      text: "Llevo seis meses sin redactar un informe a mano. Marli me devolvió mi tiempo."
+      voice_id: "REEMPLAZA_CON_TU_VOICE_ID_DE_ELEVENLABS"
+    subtitle: "PSICÓLOGA · CONSULTA PRIVADA"
+
+  - id: razones
+    type: SLIDESHOW_5
+    duration: 5
+    slide_dur: 1.0
+    transition: hard-cut          # hard-cut | xfade-0.15 | flash
+    sting: drum                   # drum | none
+    seed_base: 100
+    slides:
+      - {prompt: "close-up of calm therapist hands on a clean cream desk, soft window light",                overlay: "1 · Cero papeleo"}
+      - {prompt: "phone screen showing a confirmed appointment notification, warm light",                    overlay: "2 · Citas automáticas"}
+      - {prompt: "minimalist floating dashboard with subtle red accents over a cream office background",     overlay: "3 · Informes al instante"}
+      - {prompt: "happy patient leaving a sunlit consultation room",                                          overlay: "4 · Más tiempo para tus pacientes"}
+      - {prompt: "small friendly red robot mascot resting peacefully on a shelf, golden hour light",         overlay: "5 · Un sistema tuyo para siempre"}
+
+  - id: solution
+    type: CINEMATIC
+    duration: 5
+    camera: slow-orbit
+    seed: 84
+    prompt: >
+      small friendly red robot mascot, soft translucent floating cards drifting around
+      it with subtle red accents, cream psychology office, premium editorial render
+    overlay:
+      scrim: bottom-40
+      lines:
+        - {text: "Conoce a Li.",                        font: headline, size: 70, color: red,   t_in: 0.4,  y: 1330}
+        - {text: "Tu asistente que nunca descansa.",    font: body,     size: 44, color: white, t_in: 0.95, y: 1440}
+
+  - id: cta
+    type: TEXT_CARD
+    duration: 5
+    background:
+      prompt: >
+        soft cream studio backdrop with empty space at center for type, golden hour
+        light, premium product photography
+      seed: 999
+    pre_headline: "Automatiza tu consulta"
+    headline:     "en menos de 1 hora"
+    subhead:      "Sin cuotas. Sin técnicos."
+    cta_pill:     "AGENDA TU LLAMADA GRATIS"
+    cta_url:      "marliagency.com"
+    fade_out:     0.5
+
+audio_mix:
+  cinematic: {music: 0.85, voice: 0.0}
+  text_card: {music: 0.85, voice: 0.0}
+  ugc:       {music: 0.07, voice: 1.15}
+  slideshow: {music: 0.85, sting: 1.0}
